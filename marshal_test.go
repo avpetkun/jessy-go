@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"reflect"
 	"testing"
 )
 
@@ -124,8 +123,7 @@ func BenchmarkMarshal(b *testing.B) {
 	b.Run("jessy", func(b *testing.B) {
 		b.ResetTimer()
 		for range b.N {
-			enc := getValueEncoder(reflect.TypeOf(value))
-			buf, _ = enc(buf[:0], reflect.ValueOf(value).UnsafePointer())
+			buf, _ = AppendMarshal(buf[:0], value)
 		}
 	})
 	b.Run("json", func(b *testing.B) {

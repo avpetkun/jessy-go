@@ -1,6 +1,7 @@
 package jessy
 
 import (
+	"errors"
 	"math"
 	"reflect"
 	"strconv"
@@ -12,8 +13,17 @@ import (
 )
 
 func Marshal(value any) (data []byte, err error) {
-	enc := getValueEncoder(reflect.TypeOf(value))
-	return enc(nil, reflect.ValueOf(value).UnsafePointer())
+	return AppendMarshal(nil, value)
+}
+
+func AppendMarshal(dst []byte, value any) (data []byte, err error) {
+	t := reflect.TypeOf(value)
+	if t.Kind() != reflect.Pointer {
+		err = errors.New("marshal value must be a pointer")
+		return
+	}
+	enc := getValueEncoder(t)
+	return enc(dst, reflect.ValueOf(value).UnsafePointer())
 }
 
 var encoders sync.Map
@@ -81,10 +91,11 @@ type encoder func(dst []byte, v unsafe.Pointer) ([]byte, error)
 
 func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) encoder {
 	type Field struct {
-		Name    string
+		Key     string
+		KeyLen  int
 		Encoder encoder
 	}
-	fieldEncoders := []Field{}
+	fields := []Field{}
 	for i := range t.NumField() {
 		f := t.Field(i)
 
@@ -102,47 +113,55 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) encoder {
 		omitempty := action == "omitempty"
 
 		if f.Anonymous {
-			fieldEncoders = append(fieldEncoders, Field{
+			fields = append(fields, Field{
+				Key:     ",",
+				KeyLen:  1,
 				Encoder: getFieldEncoder(deep, int(f.Offset), f.Type, true, omitempty),
 			})
 		} else if f.IsExported() {
-			fieldEncoders = append(fieldEncoders, Field{
-				Name:    name,
+			key := `"` + name + `":`
+			if i > 0 {
+				key = "," + key
+			}
+			fields = append(fields, Field{
+				Key:     key,
+				KeyLen:  len(key),
 				Encoder: getFieldEncoder(deep, int(f.Offset), f.Type, false, omitempty),
 			})
 		}
 	}
-	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
-		vOffset := unsafe.Add(v, offset)
-		if !isEmbedded {
-			dst = append(dst, '{')
+	if isEmbedded {
+		return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
+			v = unsafe.Add(v, offset)
+			for i := range fields {
+				dst = append(dst, fields[i].Key...)
+				dstLen := len(dst)
+				dst, err = fields[i].Encoder(dst, v)
+				if err != nil {
+					return dst, err
+				}
+				if len(dst) == dstLen {
+					dst = dst[:dstLen-fields[i].KeyLen]
+				}
+			}
+			return dst, nil
 		}
-		var dstLen int
-		for i, f := range fieldEncoders {
-			if i > 0 {
-				dst = append(dst, ',')
-			}
-			if len(f.Name) != 0 {
-				dst = append(dst, '"')
-				dst = append(dst, f.Name...)
-				dst = append(dst, `":`...)
-			}
-			dstLen = len(dst)
-			dst, err = f.Encoder(dst, vOffset)
+	}
+	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
+		v = unsafe.Add(v, offset)
+		dst = append(dst, '{')
+		for i := range fields {
+			dst = append(dst, fields[i].Key...)
+			dstLen := len(dst)
+			dst, err = fields[i].Encoder(dst, v)
 			if err != nil {
 				return dst, err
 			}
 			if len(dst) == dstLen {
-				if i > 0 {
-					dst = dst[:dstLen-len(f.Name)-4]
-				} else {
-					dst = dst[:dstLen-len(f.Name)-3]
-				}
+				dst = dst[:dstLen-fields[i].KeyLen]
 			}
 		}
-		if !isEmbedded {
-			dst = append(dst, '}')
-		}
+		dst = append(dst, '}')
 		return dst, nil
 	}
 }
@@ -232,20 +251,19 @@ func sliceEncoder(deep, offset int, t reflect.Type, isOmitempty bool) encoder {
 }
 
 func arrayEncoder(deep, offset int, t reflect.Type, isOmitempty bool) encoder {
-	uoffset := uintptr(offset)
 	arrayLen := uintptr(t.Len())
 	elem := t.Elem()
 	elemSize := elem.Size()
 	elemEncoder := getFieldEncoder(deep, 0, elem, false, false)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		voffset := uintptr(v) + uoffset
+		v = unsafe.Add(v, offset)
 		var err error
 		dst = append(dst, '[')
 		for i := range arrayLen {
 			if i > 0 {
 				dst = append(dst, ',')
 			}
-			vp := unsafe.Pointer(voffset + elemSize*i)
+			vp := unsafe.Add(v, elemSize*i)
 			dst, err = elemEncoder(dst, vp)
 			if err != nil {
 				return dst, err
