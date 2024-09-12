@@ -159,7 +159,7 @@ func pointerEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bo
 			if *(*uintptr)(v) == 0 {
 				return dst, nil
 			}
-			return elemEncoder(dst, unsafe.Add(v, offset))
+			return elemEncoder(dst, v)
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
@@ -167,7 +167,7 @@ func pointerEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bo
 		if *(*uintptr)(v) == 0 {
 			return append(dst, "null"...), nil
 		}
-		return elemEncoder(dst, unsafe.Add(v, offset))
+		return elemEncoder(dst, v)
 	}
 }
 
