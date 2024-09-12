@@ -6,8 +6,6 @@ import (
 	"io"
 	"reflect"
 	"testing"
-
-	"github.com/bytedance/sonic"
 )
 
 type Struct struct {
@@ -120,13 +118,6 @@ func BenchmarkMarshal(b *testing.B) {
 	})
 	b.Run("json", func(b *testing.B) {
 		enc := json.NewEncoder(io.Discard)
-		b.ResetTimer()
-		for range b.N {
-			enc.Encode(value)
-		}
-	})
-	b.Run("sonic", func(b *testing.B) {
-		enc := sonic.ConfigFastest.NewEncoder(io.Discard)
 		b.ResetTimer()
 		for range b.N {
 			enc.Encode(value)
