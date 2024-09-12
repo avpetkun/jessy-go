@@ -37,22 +37,33 @@ type Struct struct {
 
 	Embedded
 	embedded
+	*EmbeddedPtr
 
 	Nested1 Nested
-	Nested2 embedded
+	Nested2 nested
 
-	NestedPtr      *Nested
-	NestedPtrEmpty *Nested
+	NestedPtr    *Nested
+	NestedPtrNil *Nested
+
+	NestedPtrOmitEmpty *Nested `json:",omitempty"`
 
 	nestedHidden Nested
 }
 
-type Embedded struct{ V int }
+type Embedded struct{ EmbedVpub int }
 
-type embedded struct{ V int }
+type EmbeddedPtr struct {
+	EmbedVPtr int `json:"embed_v_ptr"`
+}
+
+type embedded struct{ EmbedVpriv int }
 
 type Nested struct {
-	U int `json:"u"`
+	U int `json:"nested_u"`
+}
+
+type nested struct {
+	U int `json:"nested_u_priv"`
 }
 
 func getTestStruct() Struct {
@@ -80,13 +91,14 @@ func getTestStruct() Struct {
 		StrSlice: []string{"a", "b", "c"},
 
 		intHidden: 123,
-		IntOmit:   0,
 
 		Embedded: Embedded{123},
 		embedded: embedded{3145},
 
+		EmbeddedPtr: &EmbeddedPtr{789},
+
 		Nested1: Nested{435345},
-		Nested2: embedded{78634},
+		Nested2: nested{78634},
 
 		NestedPtr: &Nested{986754},
 
