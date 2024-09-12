@@ -22,8 +22,9 @@ func AppendMarshal(dst []byte, value any) (data []byte, err error) {
 		err = errors.New("marshal value must be a pointer")
 		return
 	}
+	ptr := reflect.ValueOf(value).UnsafePointer()
 	enc := getValueEncoder(t)
-	return enc(dst, reflect.ValueOf(value).UnsafePointer())
+	return enc(dst, ptr)
 }
 
 var encoders sync.Map
@@ -101,9 +102,9 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) encoder {
 
 		name := f.Tag.Get("json")
 		action := ""
-		if i := strings.IndexByte(name, ','); i != -1 {
-			action = name[i+1:]
-			name = name[:i]
+		if j := strings.IndexByte(name, ','); j != -1 {
+			action = name[j+1:]
+			name = name[:j]
 		}
 		if name == "-" {
 			continue
@@ -175,18 +176,20 @@ func pointerEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bo
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			v = unsafe.Add(v, offset)
-			if *(*uintptr)(v) == 0 {
+			vp := *(*uintptr)(v)
+			if vp == 0 {
 				return dst, nil
 			}
-			return elemEncoder(dst, v)
+			return elemEncoder(dst, unsafe.Pointer(vp))
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
-		if *(*uintptr)(v) == 0 {
+		vp := *(*uintptr)(v)
+		if vp == 0 {
 			return append(dst, "null"...), nil
 		}
-		return elemEncoder(dst, v)
+		return elemEncoder(dst, unsafe.Pointer(vp))
 	}
 }
 
