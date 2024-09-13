@@ -4,12 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"unicode/utf8"
+
+	"github.com/avpetkun/jessy-go/zgo"
 )
 
 func AppendBase64String(dst, data []byte) []byte {
 	size := base64.StdEncoding.EncodedLen(len(data)) + 2
 
-	dst, out := bytesAllocFrame(dst, size)
+	dst, out := zgo.AppendBytesFrame(dst, size)
 
 	out[0] = '"'
 	base64.StdEncoding.Encode(out[1:], data)
@@ -20,7 +22,7 @@ func AppendBase64String(dst, data []byte) []byte {
 
 func AppendHexString(dst, data []byte) []byte {
 	size := len(data)*2 + 4
-	dst, out := bytesAllocFrame(dst, size)
+	dst, out := zgo.AppendBytesFrame(dst, size)
 
 	out[0] = '"'
 	out[1] = '0'
@@ -33,7 +35,7 @@ func AppendHexString(dst, data []byte) []byte {
 
 func AppendHex(dst, data []byte) []byte {
 	size := len(data)*2 + 2
-	dst, out := bytesAllocFrame(dst, size)
+	dst, out := zgo.AppendBytesFrame(dst, size)
 
 	out[0] = '0'
 	out[1] = 'x'

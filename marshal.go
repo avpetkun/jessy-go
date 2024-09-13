@@ -8,6 +8,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/avpetkun/jessy-go/zgo"
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
@@ -47,7 +48,7 @@ func Marshal(value any) (data []byte, err error) {
 }
 
 func AppendMarshal(dst []byte, value any) (data []byte, err error) {
-	eface := *(*goEmptyInterface)(unsafe.Pointer(&value))
+	eface := zgo.UnpackEface(value)
 	var enc UnsafeEncoder
 	if val, ok := encodersCache.Load(eface.Type); ok {
 		enc = val.(UnsafeEncoder)
@@ -250,7 +251,7 @@ func pointerEncoder(deep, offset int, t reflect.Type, isEmbedded, omitEmpty bool
 
 func stringEncoder(offset int, omitEmpty bool) UnsafeEncoder {
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		h := (*goStringHeader)(unsafe.Add(v, offset))
+		h := (*zgo.StringHeader)(unsafe.Add(v, offset))
 		if h.Len == 0 {
 			if omitEmpty {
 				return dst, nil
@@ -271,7 +272,7 @@ func sliceEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEncode
 	elemSize := elem.Size()
 	elemEncoder := getFieldEncoder(deep, 0, elem, false, false)
 	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
-		h := (*goSliceHeader)(unsafe.Add(v, offset))
+		h := (*zgo.SliceHeader)(unsafe.Add(v, offset))
 		if h.Len == 0 {
 			if omitEmpty {
 				return dst, nil
@@ -336,11 +337,7 @@ func arrayEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEncode
 
 func arrayByteHexEncoder(offset int, arrayLen uintptr, omitEmpty bool) UnsafeEncoder {
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		data := *(*[]byte)(unsafe.Pointer(&goSliceHeader{
-			Data: uintptr(unsafe.Add(v, offset)),
-			Len:  arrayLen,
-			Cap:  arrayLen,
-		}))
+		data := zgo.MakeSliceBytes(unsafe.Add(v, offset), arrayLen, arrayLen)
 		if omitEmpty {
 			var mask byte
 			for i := range data {
@@ -546,7 +543,7 @@ func boolEncoder(offset int, omitEmpty bool) UnsafeEncoder {
 }
 
 func appendMarshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
-	newValue := newRValuerForRType(t)
+	newValue := zgo.NewRValuerForRType(t)
 	return func(dst []byte, v unsafe.Pointer) (newDst []byte, err error) {
 		v = unsafe.Add(v, offset)
 		val := newValue(v).Interface()
@@ -559,7 +556,7 @@ func appendMarshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
 }
 
 func marshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
-	newValue := newRValuerForRType(t)
+	newValue := zgo.NewRValuerForRType(t)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
 		val := newValue(v).Interface()
@@ -572,7 +569,7 @@ func marshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
 }
 
 func textMarshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
-	newValue := newRValuerForRType(t)
+	newValue := zgo.NewRValuerForRType(t)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
 		val := newValue(v).Interface()

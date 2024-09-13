@@ -1,4 +1,4 @@
-package jessy
+package zgo
 
 import (
 	"reflect"
@@ -7,22 +7,13 @@ import (
 
 //go:linkname toRType reflect.toType
 //go:noescape
-func toRType(*goType) reflect.Type
+func toRType(*Type) reflect.Type
 
 //go:linkname ifaceIndir reflect.ifaceIndir
 //go:noescape
-func ifaceIndir(*goType) bool
+func ifaceIndir(*Type) bool
 
-type goEmptyInterface struct {
-	Type  *goType
-	Value unsafe.Pointer
-}
-
-func goUnpackEface(value any) goEmptyInterface {
-	return *(*goEmptyInterface)(unsafe.Pointer(&value))
-}
-
-type goType struct {
+type Type struct {
 	Size       uintptr
 	PtrBytes   uintptr      // number of (prefix) bytes in the type that can contain pointers
 	Hash       uint32       // hash of type; avoids computation in hash tables
@@ -41,17 +32,17 @@ type goType struct {
 	PtrToThis int32 // type for pointer to this type, may be zero
 }
 
-func (gt *goType) Native() reflect.Type { return toRType(gt) }
+func (gt *Type) Native() reflect.Type { return toRType(gt) }
 
-type goValue struct {
-	typ     *goType
+type Value struct {
+	typ     *Type
 	ptr     unsafe.Pointer
 	uintptr // flag
 }
 
-func newRValuerForRType(rt reflect.Type) func(ptr unsafe.Pointer) reflect.Value {
-	eface := goUnpackEface(rt)
-	gt := (*goType)(eface.Value)
+func NewRValuerForRType(rt reflect.Type) func(ptr unsafe.Pointer) reflect.Value {
+	eface := UnpackEface(rt)
+	gt := (*Type)(eface.Value)
 
 	flag := uintptr(rt.Kind())
 	if ifaceIndir(gt) {
@@ -59,18 +50,7 @@ func newRValuerForRType(rt reflect.Type) func(ptr unsafe.Pointer) reflect.Value 
 	}
 
 	return func(ptr unsafe.Pointer) reflect.Value {
-		val := goValue{gt, ptr, flag}
+		val := Value{gt, ptr, flag}
 		return *(*reflect.Value)(unsafe.Pointer(&val))
 	}
-}
-
-type goStringHeader struct {
-	Data *byte
-	Len  int
-}
-
-type goSliceHeader struct {
-	Data uintptr
-	Len  uintptr
-	Cap  uintptr
 }
