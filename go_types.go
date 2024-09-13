@@ -72,5 +72,5 @@ type goStringHeader struct {
 type goSliceHeader struct {
 	Data uintptr
 	Len  uintptr
-	Cap  int
+	Cap  uintptr
 }

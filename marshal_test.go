@@ -31,6 +31,9 @@ type Struct struct {
 	IntArr2 [2]int
 	ByteArr [10]byte
 
+	ByteArr5    [5]byte `json:",omitempty"`
+	ByteArrOmit [5]byte `json:",omitempty"`
+
 	StrSlice []string `json:"strSlice"`
 
 	intHidden int
@@ -120,9 +123,10 @@ func getTestStruct() Struct {
 
 		String: "test_string",
 
-		IntArr3: [3]int{1, 2, 3},
-		IntArr2: [2]int{1, 2},
-		ByteArr: [10]byte{1, 2, 3},
+		IntArr3:  [3]int{1, 2, 3},
+		IntArr2:  [2]int{1, 2},
+		ByteArr:  [10]byte{1, 2, 3},
+		ByteArr5: [5]byte{1, 2, 3, 4, 5},
 
 		StrSlice: []string{"a", "b", "c"},
 
@@ -158,7 +162,7 @@ func TestMarshal(t *testing.T) {
 	AddValueEncoder(func(dst []byte, v [10]byte) ([]byte, error) {
 		b := make([]byte, len(v)*2)
 		hex.Encode(b, v[:])
-		dst = append(dst, `"0x`...)
+		dst = append(dst, `"custom:0x`...)
 		dst = append(dst, b...)
 		dst = append(dst, '"')
 		return dst, nil
