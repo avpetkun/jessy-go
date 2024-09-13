@@ -1,4 +1,4 @@
-package dec
+package format
 
 func AppendInt64(dst []byte, v int64) []byte {
 	if v == 0 {

@@ -1,4 +1,4 @@
-package jessy
+package format
 
 import (
 	"encoding/base64"
@@ -6,7 +6,7 @@ import (
 	"unicode/utf8"
 )
 
-func appendBase64String(dst, data []byte) []byte {
+func AppendBase64String(dst, data []byte) []byte {
 	size := base64.StdEncoding.EncodedLen(len(data)) + 2
 
 	dst, out := slicesGetFrame(dst, size)
@@ -18,7 +18,7 @@ func appendBase64String(dst, data []byte) []byte {
 	return dst
 }
 
-func appendHexString(dst, data []byte) []byte {
+func AppendHexString(dst, data []byte) []byte {
 	size := len(data)*2 + 4
 	dst, out := slicesGetFrame(dst, size)
 
@@ -31,8 +31,8 @@ func appendHexString(dst, data []byte) []byte {
 	return dst
 }
 
-// from encoding/json.appendString
-func appendString(dst, src []byte) []byte {
+// from encoding/json.AppendString
+func AppendString(dst, src []byte) []byte {
 	const hex = "0123456789abcdef"
 
 	dst = append(dst, '"')

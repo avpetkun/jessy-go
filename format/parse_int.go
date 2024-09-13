@@ -1,4 +1,4 @@
-package dec
+package format
 
 import (
 	"fmt"
