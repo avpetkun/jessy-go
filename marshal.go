@@ -1,7 +1,6 @@
 package jessy
 
 import (
-	"errors"
 	"math"
 	"reflect"
 	"strconv"
@@ -12,36 +11,32 @@ import (
 	"github.com/avpetkun/jessy-go/dec"
 )
 
+var MarshalMaxDeep = 10
+
+var encoders sync.Map
+
 func Marshal(value any) (data []byte, err error) {
 	return AppendMarshal(nil, value)
 }
 
 func AppendMarshal(dst []byte, value any) (data []byte, err error) {
-	t := reflect.TypeOf(value)
-	if t.Kind() != reflect.Pointer {
-		err = errors.New("marshal value must be a pointer")
-		return
+	eface := *(*goEmptyInterface)(unsafe.Pointer(&value))
+	var enc encoder
+	if val, ok := encoders.Load(eface.Type); ok {
+		enc = val.(encoder)
+	} else {
+		t := reflect.TypeOf(value)
+		if t.Kind() == reflect.Pointer {
+			t = t.Elem()
+		}
+		enc = getFieldEncoder(0, 0, t, false, false)
+		encoders.Store(eface.Type, enc)
 	}
-	ptr := reflect.ValueOf(value).UnsafePointer()
-	enc := getValueEncoder(t)
-	return enc(dst, ptr)
+	return enc(dst, eface.Value)
 }
-
-var encoders sync.Map
-
-func getValueEncoder(t reflect.Type) encoder {
-	if val, ok := encoders.Load(t); ok {
-		return val.(encoder)
-	}
-	enc := getFieldEncoder(0, 0, t, false, false)
-	encoders.Store(t, enc)
-	return enc
-}
-
-var MaxDeep = 10
 
 func getFieldEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bool) encoder {
-	if deep++; deep == MaxDeep {
+	if deep++; deep == MarshalMaxDeep {
 		return nopEncoder
 	}
 	switch t.Kind() {
@@ -200,12 +195,8 @@ func mapEncoder(deep, offset int, t reflect.Type, isOmitempty bool) encoder {
 }
 
 func stringEncoder(offset int, isOmitempty bool) encoder {
-	type StringHeader struct {
-		Data *byte
-		Len  int
-	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		h := (*StringHeader)(unsafe.Add(v, offset))
+		h := (*goStringHeader)(unsafe.Add(v, offset))
 		if h.Len == 0 {
 			if isOmitempty {
 				return dst, nil
@@ -221,16 +212,11 @@ func stringEncoder(offset int, isOmitempty bool) encoder {
 }
 
 func sliceEncoder(deep, offset int, t reflect.Type, isOmitempty bool) encoder {
-	type SliceHeader struct {
-		Data uintptr
-		Len  uintptr
-		Cap  int
-	}
 	elem := t.Elem()
 	elemSize := elem.Size()
 	elemEncoder := getFieldEncoder(deep, 0, elem, false, false)
 	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
-		h := (*SliceHeader)(unsafe.Add(v, offset))
+		h := (*goSliceHeader)(unsafe.Add(v, offset))
 		if h.Len == 0 {
 			if isOmitempty {
 				return dst, nil

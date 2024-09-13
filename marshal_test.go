@@ -41,12 +41,34 @@ type Struct struct {
 	Nested1 Nested
 	Nested2 nested
 
-	NestedPtr    *Nested
+	NestedPtr1   *Nested
+	NestedPtr2   *Nested
 	NestedPtrNil *Nested
 
 	NestedPtrOmitEmpty *Nested `json:",omitempty"`
 
 	nestedHidden Nested
+
+	JMarshalValVal JMarshalVal
+	JMarshalValPtr JMarshalPtr
+	JMarshalPtrVal *JMarshalVal
+	JMarshalPtrPtr *JMarshalPtr
+}
+
+type JMarshalPtr struct{}
+
+var jMarshalPtrData = []byte("JMarshalPtr")
+
+func (s *JMarshalPtr) MarshalJSON() ([]byte, error) {
+	return jMarshalPtrData, nil
+}
+
+type JMarshalVal struct{}
+
+var jMarshalValData = []byte("JMarshalVal")
+
+func (s JMarshalVal) MarshalJSON() ([]byte, error) {
+	return jMarshalValData, nil
 }
 
 type Embedded struct{ EmbedVpub int }
@@ -59,6 +81,7 @@ type embedded struct{ EmbedVpriv int }
 
 type Nested struct {
 	U int `json:"nested_u"`
+	V int `json:"nested_v"`
 }
 
 type nested struct {
@@ -96,20 +119,25 @@ func getTestStruct() Struct {
 
 		EmbeddedPtr: &EmbeddedPtr{789},
 
-		Nested1: Nested{435345},
+		Nested1: Nested{435345, 2},
 		Nested2: nested{78634},
 
-		NestedPtr: &Nested{986754},
+		NestedPtr1: &Nested{986754, 3},
+		NestedPtr2: &Nested{986755, 33},
 
-		nestedHidden: Nested{56432},
+		nestedHidden: Nested{56432, 4},
+
+		JMarshalValVal: JMarshalVal{},
+		JMarshalValPtr: JMarshalPtr{},
+		JMarshalPtrVal: &JMarshalVal{},
+		JMarshalPtrPtr: &JMarshalPtr{},
 	}
 }
 
 func TestMarshal(t *testing.T) {
-	vv := getTestStruct()
-	//vp := getTestStruct()
+	v := getTestStruct()
 
-	data, err := Marshal(&vv)
+	data, err := Marshal(&v)
 	fmt.Println("TestMarshal data", string(data))
 	fmt.Println("TestMarshal err", err)
 }
