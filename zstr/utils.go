@@ -1,4 +1,4 @@
-package format
+package zstr
 
 func slicesGetFrame[S ~[]E, E any](s S, n int) (newS, frame S) {
 	s0 := len(s)

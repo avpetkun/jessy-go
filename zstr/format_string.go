@@ -1,4 +1,4 @@
-package format
+package zstr
 
 import (
 	"encoding/base64"

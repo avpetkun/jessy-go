@@ -8,7 +8,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/avpetkun/jessy-go/format"
+	"github.com/avpetkun/jessy-go/zstr"
 )
 
 var (
@@ -258,7 +258,7 @@ func stringEncoder(offset int, omitEmpty bool) UnsafeEncoder {
 			return append(dst, '"', '"'), nil
 		}
 		data := unsafe.Slice(h.Data, h.Len)
-		dst = format.AppendString(dst, data)
+		dst = zstr.AppendString(dst, data)
 		return dst, nil
 	}
 }
@@ -303,7 +303,7 @@ func sliceBase64Encoder(offset int, omitEmpty bool) UnsafeEncoder {
 			}
 			return append(dst, '[', ']'), nil
 		}
-		return format.AppendBase64String(dst, data), nil
+		return zstr.AppendBase64String(dst, data), nil
 	}
 }
 
@@ -350,7 +350,7 @@ func arrayByteHexEncoder(offset int, arrayLen uintptr, omitEmpty bool) UnsafeEnc
 				return dst, nil
 			}
 		}
-		return format.AppendHexString(dst, data), nil
+		return zstr.AppendHexString(dst, data), nil
 	}
 }
 
@@ -375,12 +375,12 @@ func uint64Encoder(offset int, omitEmpty bool) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return format.AppendUint64(dst, n), nil
+			return zstr.AppendUint64(dst, n), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		n := *(*uint64)(unsafe.Add(v, offset))
-		return format.AppendUint64(dst, n), nil
+		return zstr.AppendUint64(dst, n), nil
 	}
 }
 
@@ -391,12 +391,12 @@ func int64Encoder(offset int, omitEmpty bool) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return format.AppendInt64(dst, n), nil
+			return zstr.AppendInt64(dst, n), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		n := *(*int64)(unsafe.Add(v, offset))
-		return format.AppendInt64(dst, n), nil
+		return zstr.AppendInt64(dst, n), nil
 	}
 }
 
@@ -407,12 +407,12 @@ func uint32Encoder(offset int, omitEmpty bool) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return format.AppendUint64(dst, uint64(n)), nil
+			return zstr.AppendUint64(dst, uint64(n)), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		n := *(*uint32)(unsafe.Add(v, offset))
-		return format.AppendUint64(dst, uint64(n)), nil
+		return zstr.AppendUint64(dst, uint64(n)), nil
 	}
 }
 
@@ -423,12 +423,12 @@ func int32Encoder(offset int, omitEmpty bool) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return format.AppendInt64(dst, int64(n)), nil
+			return zstr.AppendInt64(dst, int64(n)), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		n := *(*int32)(unsafe.Add(v, offset))
-		return format.AppendInt64(dst, int64(n)), nil
+		return zstr.AppendInt64(dst, int64(n)), nil
 	}
 }
 
@@ -439,12 +439,12 @@ func uint16Encoder(offset int, omitEmpty bool) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return format.AppendUint64(dst, uint64(n)), nil
+			return zstr.AppendUint64(dst, uint64(n)), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		n := *(*uint16)(unsafe.Add(v, offset))
-		return format.AppendUint64(dst, uint64(n)), nil
+		return zstr.AppendUint64(dst, uint64(n)), nil
 	}
 }
 
@@ -455,12 +455,12 @@ func int16Encoder(offset int, omitEmpty bool) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return format.AppendInt64(dst, int64(n)), nil
+			return zstr.AppendInt64(dst, int64(n)), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		n := *(*int16)(unsafe.Add(v, offset))
-		return format.AppendInt64(dst, int64(n)), nil
+		return zstr.AppendInt64(dst, int64(n)), nil
 	}
 }
 
@@ -471,12 +471,12 @@ func uint8Encoder(offset int, omitEmpty bool) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return format.AppendUint8(dst, n), nil
+			return zstr.AppendUint8(dst, n), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		n := *(*uint8)(unsafe.Add(v, offset))
-		return format.AppendUint8(dst, n), nil
+		return zstr.AppendUint8(dst, n), nil
 	}
 }
 
@@ -487,12 +487,12 @@ func int8Encoder(offset int, omitEmpty bool) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return format.AppendInt8(dst, n), nil
+			return zstr.AppendInt8(dst, n), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		n := *(*int8)(unsafe.Add(v, offset))
-		return format.AppendInt8(dst, n), nil
+		return zstr.AppendInt8(dst, n), nil
 	}
 }
 
@@ -580,6 +580,6 @@ func textMarshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
 		if err != nil {
 			return dst, nil
 		}
-		return format.AppendString(dst, data), nil
+		return zstr.AppendString(dst, data), nil
 	}
 }

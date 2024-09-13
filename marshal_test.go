@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/avpetkun/jessy-go/format"
+	"github.com/avpetkun/jessy-go/zstr"
 )
 
 type Struct struct {
@@ -165,7 +165,7 @@ func TestMarshal(t *testing.T) {
 	AddValueEncoder(func(omitEmpty bool) ValueEncoder[[10]byte] {
 		return func(dst []byte, v [10]byte) ([]byte, error) {
 			dst = append(dst, `"custom:`...)
-			dst = format.AppendHex(dst, v[:])
+			dst = zstr.AppendHex(dst, v[:])
 			dst = append(dst, '"')
 			return dst, nil
 		}
