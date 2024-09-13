@@ -543,11 +543,10 @@ func boolEncoder(offset int, omitEmpty bool) UnsafeEncoder {
 }
 
 func appendMarshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
-	newValue := zgo.NewRValuerForRType(t)
+	getInterface := zgo.NewAnyInterfacerFromRType(t)
 	return func(dst []byte, v unsafe.Pointer) (newDst []byte, err error) {
 		v = unsafe.Add(v, offset)
-		val := newValue(v).Interface()
-		newDst, err = val.(AppendMarshaler).AppendMarshalJSON(dst)
+		newDst, err = getInterface(v).(AppendMarshaler).AppendMarshalJSON(dst)
 		if err != nil {
 			return dst, nil
 		}
@@ -556,11 +555,10 @@ func appendMarshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
 }
 
 func marshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
-	newValue := zgo.NewRValuerForRType(t)
+	getInterface := zgo.NewAnyInterfacerFromRType(t)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
-		val := newValue(v).Interface()
-		data, err := val.(Marshaler).MarshalJSON()
+		data, err := getInterface(v).(Marshaler).MarshalJSON()
 		if err != nil {
 			return dst, nil
 		}
@@ -569,11 +567,10 @@ func marshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
 }
 
 func textMarshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
-	newValue := zgo.NewRValuerForRType(t)
+	getInterface := zgo.NewAnyInterfacerFromRType(t)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
-		val := newValue(v).Interface()
-		data, err := val.(TextMarshaler).MarshalText()
+		data, err := getInterface(v).(TextMarshaler).MarshalText()
 		if err != nil {
 			return dst, nil
 		}

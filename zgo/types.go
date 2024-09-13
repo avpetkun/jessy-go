@@ -54,3 +54,26 @@ func NewRValuerForRType(rt reflect.Type) func(ptr unsafe.Pointer) reflect.Value 
 		return *(*reflect.Value)(unsafe.Pointer(&val))
 	}
 }
+
+func NewAnyInterfacerFromRType(rt reflect.Type) func(valPtr unsafe.Pointer) any {
+	eface := UnpackEface(rt)
+	gt := (*Type)(eface.Value)
+
+	flag := uintptr(rt.Kind())
+	if ifaceIndir(gt) {
+		flag |= 1 << 7
+	}
+
+	var valType *Type
+
+	return func(valPtr unsafe.Pointer) any {
+		if valType == nil {
+			gVal := Value{gt, valPtr, flag}
+			rVal := (*reflect.Value)(unsafe.Pointer(&gVal))
+			i := rVal.Interface()
+			valType = UnpackEface(i).Type
+			return i
+		}
+		return PackEface(valType, valPtr)
+	}
+}
