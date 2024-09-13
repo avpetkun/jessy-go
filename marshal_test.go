@@ -34,7 +34,8 @@ type Struct struct {
 	ByteArr5    [5]byte `json:",omitempty"`
 	ByteArrOmit [5]byte `json:",omitempty"`
 
-	StrSlice []string `json:"strSlice"`
+	StrSlice  []string `json:"strSlice"`
+	ByteSlice []byte
 
 	intHidden int
 	IntOmit   int `json:",omitempty"`
@@ -128,7 +129,8 @@ func getTestStruct() Struct {
 		ByteArr:  [10]byte{1, 2, 3},
 		ByteArr5: [5]byte{1, 2, 3, 4, 5},
 
-		StrSlice: []string{"a", "b", "c"},
+		StrSlice:  []string{"a", "b", "c"},
+		ByteSlice: []byte("hello!"),
 
 		intHidden: 123,
 

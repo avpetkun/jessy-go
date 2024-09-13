@@ -1,9 +1,22 @@
 package jessy
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"unicode/utf8"
 )
+
+func appendBase64String(dst, data []byte) []byte {
+	size := base64.StdEncoding.EncodedLen(len(data)) + 2
+
+	dst, out := slicesGetFrame(dst, size)
+
+	out[0] = '"'
+	base64.StdEncoding.Encode(out[1:], data)
+	out[size-1] = '"'
+
+	return dst
+}
 
 func appendHexString(dst, data []byte) []byte {
 	size := len(data)*2 + 4

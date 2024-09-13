@@ -259,6 +259,9 @@ func stringEncoder(offset int, isOmitempty bool) UnsafeEncoder {
 
 func sliceEncoder(deep, offset int, t reflect.Type, isOmitempty bool) UnsafeEncoder {
 	elem := t.Elem()
+	if elem.Kind() == reflect.Uint8 {
+		return sliceBase64Encoder(offset, isOmitempty)
+	}
 	elemSize := elem.Size()
 	elemEncoder := getFieldEncoder(deep, 0, elem, false, false)
 	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
@@ -282,6 +285,19 @@ func sliceEncoder(deep, offset int, t reflect.Type, isOmitempty bool) UnsafeEnco
 		}
 		dst = append(dst, ']')
 		return dst, nil
+	}
+}
+
+func sliceBase64Encoder(offset int, isOmitempty bool) UnsafeEncoder {
+	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
+		data := *(*[]byte)(unsafe.Add(v, offset))
+		if len(data) == 0 {
+			if isOmitempty {
+				return dst, nil
+			}
+			return append(dst, '[', ']'), nil
+		}
+		return appendBase64String(dst, data), nil
 	}
 }
 
