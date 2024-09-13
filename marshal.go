@@ -12,9 +12,33 @@ import (
 	"github.com/avpetkun/jessy-go/dec"
 )
 
-var MarshalMaxDeep = 10
+var (
+	MarshalMaxDeep = 10
 
-var encodersCache sync.Map
+	customEncoders []customEncoder
+	encodersCache  sync.Map
+)
+
+type UnsafeEncoder func(dst []byte, valuePtr unsafe.Pointer) ([]byte, error)
+type ValueEncoder[T any] func(dst []byte, value T) ([]byte, error)
+
+type customEncoder struct {
+	reflect.Type
+	UnsafeEncoder
+}
+
+func AddUnsafeEncoder[T any](encoder UnsafeEncoder) {
+	customEncoders = append(customEncoders, customEncoder{
+		Type:          reflect.TypeFor[T](),
+		UnsafeEncoder: encoder,
+	})
+}
+
+func AddValueEncoder[T any](encoder ValueEncoder[T]) {
+	AddUnsafeEncoder[T](func(dst []byte, valuePtr unsafe.Pointer) ([]byte, error) {
+		return encoder(dst, *(*T)(valuePtr))
+	})
+}
 
 func Marshal(value any) (data []byte, err error) {
 	return AppendMarshal(nil, value)
@@ -22,9 +46,9 @@ func Marshal(value any) (data []byte, err error) {
 
 func AppendMarshal(dst []byte, value any) (data []byte, err error) {
 	eface := *(*goEmptyInterface)(unsafe.Pointer(&value))
-	var enc encoder
+	var enc UnsafeEncoder
 	if val, ok := encodersCache.Load(eface.Type); ok {
-		enc = val.(encoder)
+		enc = val.(UnsafeEncoder)
 	} else {
 		t := eface.Type.Native()
 		if t.Kind() == reflect.Pointer {
@@ -36,15 +60,37 @@ func AppendMarshal(dst []byte, value any) (data []byte, err error) {
 	return enc(dst, eface.Value)
 }
 
-func getFieldEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bool) encoder {
+func getFieldEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bool) UnsafeEncoder {
 	if deep++; deep == MarshalMaxDeep {
 		return nopEncoder
 	}
 	if t.Kind() == reflect.Pointer {
 		return pointerEncoder(deep, offset, t, isEmbedded, isOmitempty)
 	}
-	if enc := tryMarshalerEncoder(offset, t); enc != nil {
-		return enc
+	for i := range customEncoders {
+		if customEncoders[i].Type == t {
+			enc := customEncoders[i].UnsafeEncoder
+			return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+				return enc(dst, unsafe.Add(v, offset))
+			}
+		}
+	}
+	{
+		tp := reflect.PointerTo(t)
+		switch {
+		case t.Implements(typeAppendMarshaler):
+			return appendMarshalerEncoder(offset, t)
+		case tp.Implements(typeAppendMarshaler):
+			return appendMarshalerEncoder(offset, tp)
+		case t.Implements(typeMarshaler):
+			return marshalerEncoder(offset, t)
+		case tp.Implements(typeMarshaler):
+			return marshalerEncoder(offset, tp)
+		case t.Implements(typeTextMarshaler):
+			return textMarshalerEncoder(offset, t)
+		case tp.Implements(typeTextMarshaler):
+			return textMarshalerEncoder(offset, tp)
+		}
 	}
 	switch t.Kind() {
 	case reflect.Struct:
@@ -88,13 +134,15 @@ func getFieldEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty b
 	}
 }
 
-type encoder func(dst []byte, v unsafe.Pointer) ([]byte, error)
+func nopEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
+	return dst, nil
+}
 
-func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) encoder {
+func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEncoder {
 	type Field struct {
 		Key     string
 		KeyLen  int
-		Encoder encoder
+		Encoder UnsafeEncoder
 	}
 	fields := []Field{}
 	for i := range t.NumField() {
@@ -167,11 +215,13 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) encoder {
 	}
 }
 
-func nopEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
-	return dst, nil
+func mapEncoder(deep, offset int, t reflect.Type, isOmitempty bool) UnsafeEncoder {
+	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		return append(dst, 'n', 'u', 'l', 'l'), nil
+	}
 }
 
-func pointerEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bool) encoder {
+func pointerEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bool) UnsafeEncoder {
 	elemEncoder := getFieldEncoder(deep, 0, t.Elem(), isEmbedded, isOmitempty)
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
@@ -193,13 +243,7 @@ func pointerEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bo
 	}
 }
 
-func mapEncoder(deep, offset int, t reflect.Type, isOmitempty bool) encoder {
-	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		return append(dst, 'n', 'u', 'l', 'l'), nil
-	}
-}
-
-func stringEncoder(offset int, isOmitempty bool) encoder {
+func stringEncoder(offset int, isOmitempty bool) UnsafeEncoder {
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		h := (*goStringHeader)(unsafe.Add(v, offset))
 		if h.Len == 0 {
@@ -214,7 +258,7 @@ func stringEncoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func sliceEncoder(deep, offset int, t reflect.Type, isOmitempty bool) encoder {
+func sliceEncoder(deep, offset int, t reflect.Type, isOmitempty bool) UnsafeEncoder {
 	elem := t.Elem()
 	elemSize := elem.Size()
 	elemEncoder := getFieldEncoder(deep, 0, elem, false, false)
@@ -242,7 +286,7 @@ func sliceEncoder(deep, offset int, t reflect.Type, isOmitempty bool) encoder {
 	}
 }
 
-func arrayEncoder(deep, offset int, t reflect.Type, isOmitempty bool) encoder {
+func arrayEncoder(deep, offset int, t reflect.Type, isOmitempty bool) UnsafeEncoder {
 	arrayLen := uintptr(t.Len())
 	elem := t.Elem()
 	elemSize := elem.Size()
@@ -266,21 +310,21 @@ func arrayEncoder(deep, offset int, t reflect.Type, isOmitempty bool) encoder {
 	}
 }
 
-func uintEncoder(offset int, isOmitempty bool) encoder {
+func uintEncoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if math.MaxInt == math.MaxInt64 {
 		return uint64Encoder(offset, isOmitempty)
 	}
 	return uint32Encoder(offset, isOmitempty)
 }
 
-func intEncoder(offset int, isOmitempty bool) encoder {
+func intEncoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if math.MaxInt == math.MaxInt64 {
 		return int64Encoder(offset, isOmitempty)
 	}
 	return int32Encoder(offset, isOmitempty)
 }
 
-func uint64Encoder(offset int, isOmitempty bool) encoder {
+func uint64Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*uint64)(unsafe.Add(v, offset))
@@ -296,7 +340,7 @@ func uint64Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func int64Encoder(offset int, isOmitempty bool) encoder {
+func int64Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*int64)(unsafe.Add(v, offset))
@@ -312,7 +356,7 @@ func int64Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func uint32Encoder(offset int, isOmitempty bool) encoder {
+func uint32Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*uint32)(unsafe.Add(v, offset))
@@ -328,7 +372,7 @@ func uint32Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func int32Encoder(offset int, isOmitempty bool) encoder {
+func int32Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*int32)(unsafe.Add(v, offset))
@@ -344,7 +388,7 @@ func int32Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func uint16Encoder(offset int, isOmitempty bool) encoder {
+func uint16Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*uint16)(unsafe.Add(v, offset))
@@ -360,7 +404,7 @@ func uint16Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func int16Encoder(offset int, isOmitempty bool) encoder {
+func int16Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*int16)(unsafe.Add(v, offset))
@@ -376,7 +420,7 @@ func int16Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func uint8Encoder(offset int, isOmitempty bool) encoder {
+func uint8Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*uint8)(unsafe.Add(v, offset))
@@ -392,7 +436,7 @@ func uint8Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func int8Encoder(offset int, isOmitempty bool) encoder {
+func int8Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*int8)(unsafe.Add(v, offset))
@@ -408,7 +452,7 @@ func int8Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func float32Encoder(offset int, isOmitempty bool) encoder {
+func float32Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*float32)(unsafe.Add(v, offset))
@@ -424,7 +468,7 @@ func float32Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func float64Encoder(offset int, isOmitempty bool) encoder {
+func float64Encoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			n := *(*float64)(unsafe.Add(v, offset))
@@ -440,7 +484,7 @@ func float64Encoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func boolEncoder(offset int, isOmitempty bool) encoder {
+func boolEncoder(offset int, isOmitempty bool) UnsafeEncoder {
 	if isOmitempty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			if *(*bool)(unsafe.Add(v, offset)) {
@@ -457,27 +501,7 @@ func boolEncoder(offset int, isOmitempty bool) encoder {
 	}
 }
 
-func tryMarshalerEncoder(offset int, t reflect.Type) encoder {
-	tp := reflect.PointerTo(t)
-	switch {
-	case t.Implements(typeAppendMarshaler):
-		return appendMarshalerEncoder(offset, t)
-	case tp.Implements(typeAppendMarshaler):
-		return appendMarshalerEncoder(offset, tp)
-	case t.Implements(typeMarshaler):
-		return marshalerEncoder(offset, t)
-	case tp.Implements(typeMarshaler):
-		return marshalerEncoder(offset, tp)
-	case t.Implements(typeTextMarshaler):
-		return textMarshalerEncoder(offset, t)
-	case tp.Implements(typeTextMarshaler):
-		return textMarshalerEncoder(offset, tp)
-	default:
-		return nil
-	}
-}
-
-func appendMarshalerEncoder(offset int, t reflect.Type) encoder {
+func appendMarshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
 	newValue := newRValuerForRType(t)
 	return func(dst []byte, v unsafe.Pointer) (newDst []byte, err error) {
 		v = unsafe.Add(v, offset)
@@ -490,7 +514,7 @@ func appendMarshalerEncoder(offset int, t reflect.Type) encoder {
 	}
 }
 
-func marshalerEncoder(offset int, t reflect.Type) encoder {
+func marshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
 	newValue := newRValuerForRType(t)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
@@ -503,7 +527,7 @@ func marshalerEncoder(offset int, t reflect.Type) encoder {
 	}
 }
 
-func textMarshalerEncoder(offset int, t reflect.Type) encoder {
+func textMarshalerEncoder(offset int, t reflect.Type) UnsafeEncoder {
 	newValue := newRValuerForRType(t)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)

@@ -1,6 +1,7 @@
 package jessy
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,6 +29,7 @@ type Struct struct {
 
 	IntArr3 [3]int
 	IntArr2 [2]int
+	ByteArr [10]byte
 
 	StrSlice []string `json:"strSlice"`
 
@@ -120,6 +122,7 @@ func getTestStruct() Struct {
 
 		IntArr3: [3]int{1, 2, 3},
 		IntArr2: [2]int{1, 2},
+		ByteArr: [10]byte{1, 2, 3},
 
 		StrSlice: []string{"a", "b", "c"},
 
@@ -151,6 +154,15 @@ func getTestStruct() Struct {
 
 func TestMarshal(t *testing.T) {
 	v := getTestStruct()
+
+	AddValueEncoder(func(dst []byte, v [10]byte) ([]byte, error) {
+		b := make([]byte, len(v)*2)
+		hex.Encode(b, v[:])
+		dst = append(dst, `"0x`...)
+		dst = append(dst, b...)
+		dst = append(dst, '"')
+		return dst, nil
+	})
 
 	data, err := Marshal(&v)
 	fmt.Println("TestMarshal data", string(data))
