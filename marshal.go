@@ -457,26 +457,61 @@ func boolEncoder(offset int, isOmitempty bool) encoder {
 }
 
 func tryMarshalerEncoder(offset int, t reflect.Type) encoder {
-	if t.Implements(typeMarshaler) {
+	tp := reflect.PointerTo(t)
+	switch {
+	case t.Implements(typeAppendMarshaler):
+		return appendMarshalerEncoder(offset, t)
+	case tp.Implements(typeAppendMarshaler):
+		return appendMarshalerEncoder(offset, tp)
+	case t.Implements(typeMarshaler):
 		return marshalerEncoder(offset, t)
+	case tp.Implements(typeMarshaler):
+		return marshalerEncoder(offset, tp)
+	case t.Implements(typeTextMarshaler):
+		return textMarshalerEncoder(offset, t)
+	case tp.Implements(typeTextMarshaler):
+		return textMarshalerEncoder(offset, tp)
+	default:
+		return nil
 	}
-	if ptr := reflect.PointerTo(t); ptr.Implements(typeMarshaler) {
-		return marshalerEncoder(offset, ptr)
+}
+
+func appendMarshalerEncoder(offset int, t reflect.Type) encoder {
+	newValue := newRValuerForRType(t)
+	return func(dst []byte, v unsafe.Pointer) (newDst []byte, err error) {
+		v = unsafe.Add(v, offset)
+		val := newValue(v).Interface()
+		newDst, err = val.(AppendMarshaler).AppendMarshalJSON(dst)
+		if err != nil {
+			return dst, nil
+		}
+		return newDst, nil
 	}
-	return nil
 }
 
 func marshalerEncoder(offset int, t reflect.Type) encoder {
 	newValue := newRValuerForRType(t)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
-
 		val := newValue(v).Interface()
 		data, err := val.(Marshaler).MarshalJSON()
 		if err != nil {
 			return dst, nil
 		}
 		return append(dst, data...), nil
+	}
+}
+
+func textMarshalerEncoder(offset int, t reflect.Type) encoder {
+	newValue := newRValuerForRType(t)
+	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		v = unsafe.Add(v, offset)
+		val := newValue(v).Interface()
+		data, err := val.(TextMarshaler).MarshalText()
+		if err != nil {
+			return dst, nil
+		}
+		return appendString(dst, data), nil
 	}
 }
 

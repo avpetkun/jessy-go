@@ -53,23 +53,21 @@ type Struct struct {
 	JMarshalValPtr JMarshalPtr
 	JMarshalPtrVal *JMarshalVal
 	JMarshalPtrPtr *JMarshalPtr
+
+	TMarhalVal TMarshalVal
 }
 
-type JMarshalPtr struct{}
+type TMarshalVal struct{ data []byte }
 
-var jMarshalPtrData = []byte(`"JMarshalPtr"`)
+func (v TMarshalVal) MarshalText() ([]byte, error) { return v.data, nil }
 
-func (s *JMarshalPtr) MarshalJSON() ([]byte, error) {
-	return jMarshalPtrData, nil
-}
+type JMarshalPtr struct{ Data []byte }
 
-type JMarshalVal struct{}
+func (s *JMarshalPtr) MarshalJSON() ([]byte, error) { return s.Data, nil }
 
-var jMarshalValData = []byte(`"JMarshalVal"`)
+type JMarshalVal struct{ Data []byte }
 
-func (s JMarshalVal) MarshalJSON() ([]byte, error) {
-	return jMarshalValData, nil
-}
+func (s JMarshalVal) MarshalJSON() ([]byte, error) { return s.Data, nil }
 
 type Embedded struct{ EmbedVpub int }
 
@@ -127,10 +125,12 @@ func getTestStruct() Struct {
 
 		nestedHidden: Nested{56432, 4},
 
-		JMarshalValVal: JMarshalVal{},
-		JMarshalValPtr: JMarshalPtr{},
-		JMarshalPtrVal: &JMarshalVal{},
-		JMarshalPtrPtr: &JMarshalPtr{},
+		JMarshalValVal: JMarshalVal{[]byte(`"JMarshalValVal"`)},
+		JMarshalValPtr: JMarshalPtr{[]byte(`"JMarshalValPtr"`)},
+		JMarshalPtrVal: &JMarshalVal{[]byte(`"JMarshalPtrVal"`)},
+		JMarshalPtrPtr: &JMarshalPtr{[]byte(`"JMarshalPtrPtr"`)},
+
+		TMarhalVal: TMarshalVal{[]byte("TMarhalVal")},
 	}
 }
 

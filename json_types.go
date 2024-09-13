@@ -36,6 +36,6 @@ type (
 	Unmarshaler = json.Unmarshaler
 
 	AppendMarshaler interface {
-		AppendMarshalJSON(dst []byte) ([]byte, error)
+		AppendMarshalJSON(dst []byte) (newDst []byte, err error)
 	}
 )
