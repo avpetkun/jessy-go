@@ -57,8 +57,18 @@ type Struct struct {
 	JMarshalPtrEmpty *JMarshalPtr
 	JMarshalPtrOmit  *JMarshalPtr `json:",omitempty"`
 
+	AppendMarshalVal AppendMarshalVal
+
 	TMarhalVal TMarshalVal
 }
+
+type AppendMarshalVal struct{ data []byte }
+
+func (v AppendMarshalVal) AppendMarshalJSON(dst []byte) ([]byte, error) {
+	return append(dst, v.data...), nil
+}
+
+func (v AppendMarshalVal) MarshalJSON() ([]byte, error) { return v.data, nil }
 
 type TMarshalVal struct{ data []byte }
 
@@ -134,6 +144,8 @@ func getTestStruct() Struct {
 		JMarshalPtrPtr: &JMarshalPtr{[]byte(`"JMarshalPtrPtr"`)},
 
 		TMarhalVal: TMarshalVal{[]byte("TMarhalVal")},
+
+		AppendMarshalVal: AppendMarshalVal{[]byte(`"AppendMarshalVal"`)},
 	}
 }
 
