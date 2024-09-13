@@ -5,6 +5,23 @@ import (
 	"unsafe"
 )
 
+//go:linkname toRType reflect.toType
+//go:noescape
+func toRType(*goType) reflect.Type
+
+//go:linkname ifaceIndir reflect.ifaceIndir
+//go:noescape
+func ifaceIndir(*goType) bool
+
+type goEmptyInterface struct {
+	Type  *goType
+	Value unsafe.Pointer
+}
+
+func goUnpackEface(value any) goEmptyInterface {
+	return *(*goEmptyInterface)(unsafe.Pointer(&value))
+}
+
 type goType struct {
 	Size       uintptr
 	PtrBytes   uintptr      // number of (prefix) bytes in the type that can contain pointers
@@ -24,9 +41,27 @@ type goType struct {
 	PtrToThis int32 // type for pointer to this type, may be zero
 }
 
-type goEmptyInterface struct {
-	Type  *goType
-	Value unsafe.Pointer
+func (gt *goType) Native() reflect.Type { return toRType(gt) }
+
+type goValue struct {
+	typ     *goType
+	ptr     unsafe.Pointer
+	uintptr // flag
+}
+
+func newRValuerForRType(rt reflect.Type) func(ptr unsafe.Pointer) reflect.Value {
+	eface := goUnpackEface(rt)
+	gt := (*goType)(eface.Value)
+
+	flag := uintptr(rt.Kind())
+	if ifaceIndir(gt) {
+		flag |= 1 << 7
+	}
+
+	return func(ptr unsafe.Pointer) reflect.Value {
+		val := goValue{gt, ptr, flag}
+		return *(*reflect.Value)(unsafe.Pointer(&val))
+	}
 }
 
 type goStringHeader struct {

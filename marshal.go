@@ -13,7 +13,7 @@ import (
 
 var MarshalMaxDeep = 10
 
-var encoders sync.Map
+var encodersCache sync.Map
 
 func Marshal(value any) (data []byte, err error) {
 	return AppendMarshal(nil, value)
@@ -22,15 +22,15 @@ func Marshal(value any) (data []byte, err error) {
 func AppendMarshal(dst []byte, value any) (data []byte, err error) {
 	eface := *(*goEmptyInterface)(unsafe.Pointer(&value))
 	var enc encoder
-	if val, ok := encoders.Load(eface.Type); ok {
+	if val, ok := encodersCache.Load(eface.Type); ok {
 		enc = val.(encoder)
 	} else {
-		t := reflect.TypeOf(value)
+		t := eface.Type.Native()
 		if t.Kind() == reflect.Pointer {
 			t = t.Elem()
 		}
 		enc = getFieldEncoder(0, 0, t, false, false)
-		encoders.Store(eface.Type, enc)
+		encodersCache.Store(eface.Type, enc)
 	}
 	return enc(dst, eface.Value)
 }
@@ -38,6 +38,9 @@ func AppendMarshal(dst []byte, value any) (data []byte, err error) {
 func getFieldEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty bool) encoder {
 	if deep++; deep == MarshalMaxDeep {
 		return nopEncoder
+	}
+	if enc := tryMarshalerEncoder(offset, t); enc != nil {
+		return enc
 	}
 	switch t.Kind() {
 	case reflect.Pointer:
@@ -451,5 +454,29 @@ func boolEncoder(offset int, isOmitempty bool) encoder {
 			return append(dst, "true"...), nil
 		}
 		return append(dst, "false"...), nil
+	}
+}
+
+func tryMarshalerEncoder(offset int, t reflect.Type) encoder {
+	if t.Implements(typeMarshaler) {
+		return marshalerEncoder(offset, t)
+	}
+	if ptr := reflect.PointerTo(t); ptr.Implements(typeMarshaler) {
+		return marshalerEncoder(offset, ptr)
+	}
+	return nil
+}
+
+func marshalerEncoder(offset int, t reflect.Type) encoder {
+	newValue := newRValuerForRType(t)
+	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		v = unsafe.Add(v, offset)
+
+		val := newValue(v).Interface()
+		data, err := val.(Marshaler).MarshalJSON()
+		if err != nil {
+			return dst, nil
+		}
+		return append(dst, data...), nil
 	}
 }

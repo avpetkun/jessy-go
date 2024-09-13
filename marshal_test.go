@@ -57,7 +57,7 @@ type Struct struct {
 
 type JMarshalPtr struct{}
 
-var jMarshalPtrData = []byte("JMarshalPtr")
+var jMarshalPtrData = []byte(`"JMarshalPtr"`)
 
 func (s *JMarshalPtr) MarshalJSON() ([]byte, error) {
 	return jMarshalPtrData, nil
@@ -65,7 +65,7 @@ func (s *JMarshalPtr) MarshalJSON() ([]byte, error) {
 
 type JMarshalVal struct{}
 
-var jMarshalValData = []byte("JMarshalVal")
+var jMarshalValData = []byte(`"JMarshalVal"`)
 
 func (s JMarshalVal) MarshalJSON() ([]byte, error) {
 	return jMarshalValData, nil
@@ -96,7 +96,7 @@ func getTestStruct() Struct {
 		Int8:    35,
 		Int16:   567,
 		Int32:   789,
-		Int64:   91011,
+		Int64:   -91011,
 		Byte:    12,
 		Uint8:   13,
 		Uint16:  1314,
