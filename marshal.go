@@ -40,12 +40,13 @@ func getFieldEncoder(deep, offset int, t reflect.Type, isEmbedded, isOmitempty b
 	if deep++; deep == MarshalMaxDeep {
 		return nopEncoder
 	}
+	if t.Kind() == reflect.Pointer {
+		return pointerEncoder(deep, offset, t, isEmbedded, isOmitempty)
+	}
 	if enc := tryMarshalerEncoder(offset, t); enc != nil {
 		return enc
 	}
 	switch t.Kind() {
-	case reflect.Pointer:
-		return pointerEncoder(deep, offset, t, isEmbedded, isOmitempty)
 	case reflect.Struct:
 		return structEncoder(deep, offset, t, isEmbedded)
 	case reflect.Map:

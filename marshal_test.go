@@ -54,6 +54,9 @@ type Struct struct {
 	JMarshalPtrVal *JMarshalVal
 	JMarshalPtrPtr *JMarshalPtr
 
+	JMarshalPtrEmpty *JMarshalPtr
+	JMarshalPtrOmit  *JMarshalPtr `json:",omitempty"`
+
 	TMarhalVal TMarshalVal
 }
 
