@@ -1,11 +1,12 @@
 package jessy
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"testing"
+
+	"github.com/avpetkun/jessy-go/format"
 )
 
 type Struct struct {
@@ -161,13 +162,13 @@ func getTestStruct() Struct {
 func TestMarshal(t *testing.T) {
 	v := getTestStruct()
 
-	AddValueEncoder(func(dst []byte, v [10]byte) ([]byte, error) {
-		b := make([]byte, len(v)*2)
-		hex.Encode(b, v[:])
-		dst = append(dst, `"custom:0x`...)
-		dst = append(dst, b...)
-		dst = append(dst, '"')
-		return dst, nil
+	AddValueEncoder(func(omitEmpty bool) ValueEncoder[[10]byte] {
+		return func(dst []byte, v [10]byte) ([]byte, error) {
+			dst = append(dst, `"custom:`...)
+			dst = format.AppendHex(dst, v[:])
+			dst = append(dst, '"')
+			return dst, nil
+		}
 	})
 
 	data, err := Marshal(&v)

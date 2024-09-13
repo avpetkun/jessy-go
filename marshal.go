@@ -18,24 +18,27 @@ var (
 	encodersCache  sync.Map
 )
 
-type UnsafeEncoder func(dst []byte, valuePtr unsafe.Pointer) ([]byte, error)
+type UnsafeEncoder func(dst []byte, value unsafe.Pointer) ([]byte, error)
 type ValueEncoder[T any] func(dst []byte, value T) ([]byte, error)
 
 type customEncoder struct {
 	reflect.Type
-	UnsafeEncoder
+	Encoder func(omitEmpty bool) UnsafeEncoder
 }
 
-func AddUnsafeEncoder[T any](encoder UnsafeEncoder) {
+func AddUnsafeEncoder[T any](encoder func(omitEmpty bool) UnsafeEncoder) {
 	customEncoders = append(customEncoders, customEncoder{
-		Type:          reflect.TypeFor[T](),
-		UnsafeEncoder: encoder,
+		Type:    reflect.TypeFor[T](),
+		Encoder: encoder,
 	})
 }
 
-func AddValueEncoder[T any](encoder ValueEncoder[T]) {
-	AddUnsafeEncoder[T](func(dst []byte, valuePtr unsafe.Pointer) ([]byte, error) {
-		return encoder(dst, *(*T)(valuePtr))
+func AddValueEncoder[T any](encoder func(omitEmpty bool) ValueEncoder[T]) {
+	AddUnsafeEncoder[T](func(omitEmpty bool) UnsafeEncoder {
+		valEnc := encoder(omitEmpty)
+		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+			return valEnc(dst, *(*T)(value))
+		}
 	})
 }
 
@@ -68,7 +71,7 @@ func getFieldEncoder(deep, offset int, t reflect.Type, isEmbedded, omitEmpty boo
 	}
 	for i := range customEncoders {
 		if customEncoders[i].Type == t {
-			enc := customEncoders[i].UnsafeEncoder
+			enc := customEncoders[i].Encoder(omitEmpty)
 			return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 				return enc(dst, unsafe.Add(v, offset))
 			}

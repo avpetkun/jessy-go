@@ -31,6 +31,17 @@ func AppendHexString(dst, data []byte) []byte {
 	return dst
 }
 
+func AppendHex(dst, data []byte) []byte {
+	size := len(data)*2 + 2
+	dst, out := slicesGetFrame(dst, size)
+
+	out[0] = '0'
+	out[1] = 'x'
+	hex.Encode(out[2:], data)
+
+	return dst
+}
+
 // from encoding/json.AppendString
 func AppendString(dst, src []byte) []byte {
 	const hex = "0123456789abcdef"
