@@ -82,6 +82,8 @@ type Struct struct {
 
 	AnyVal1 any
 	AnyVal2 any
+
+	_ struct{}
 }
 
 type AppendMarshalVal struct{ data []byte }
