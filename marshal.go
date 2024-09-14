@@ -26,7 +26,6 @@ const (
 	MarshalEmbedded  MarshalFlags = 1 << 0
 	MarshalOmitEmpty MarshalFlags = 1 << 1
 	MarshalQuote     MarshalFlags = 1 << 2
-	MarshalQuoted    MarshalFlags = 1 << 3
 )
 
 type UnsafeEncoder func(dst []byte, value unsafe.Pointer) ([]byte, error)
@@ -419,8 +418,7 @@ func sliceEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeEn
 			if i > 0 {
 				dst = append(dst, ',')
 			}
-			vp := unsafe.Pointer(h.Data + elemSize*i)
-			dst, err = elemEncoder(dst, vp)
+			dst, err = elemEncoder(dst, unsafe.Add(h.Data, elemSize*i))
 			if err != nil {
 				return dst, err
 			}

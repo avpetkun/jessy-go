@@ -3,14 +3,14 @@ package zgo
 import "unsafe"
 
 type Slice struct {
-	Data uintptr
+	Data unsafe.Pointer
 	Len  uintptr
 	Cap  uintptr
 }
 
 func MakeSliceBytes(data unsafe.Pointer, size, cap uintptr) []byte {
 	return *(*[]byte)(unsafe.Pointer(&Slice{
-		Data: uintptr(data),
+		Data: data,
 		Len:  size,
 		Cap:  cap,
 	}))
