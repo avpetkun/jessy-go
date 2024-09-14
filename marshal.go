@@ -3,6 +3,7 @@ package jessy
 import (
 	"math"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -150,7 +151,6 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 		KeyLen  int
 		Encoder UnsafeEncoder
 	}
-	// TODO: sort
 	fields := []Field{}
 	for i := range t.NumField() {
 		f := t.Field(i)
@@ -182,6 +182,9 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 			})
 		}
 	}
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].Key < fields[j].Key
+	})
 	if isEmbedded {
 		return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
 			v = unsafe.Add(v, offset)
