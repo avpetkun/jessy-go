@@ -259,7 +259,7 @@ func structEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeE
 		}
 		if f.Anonymous {
 			fields = append(fields, Field{
-				KeyLen:  1,
+				KeyLen:  0,
 				Encoder: getValEncoder(deep, int(f.Offset), f.Type, (fieldFlags | MarshalEmbedded)),
 			})
 		} else if f.IsExported() {
