@@ -42,7 +42,7 @@ type Struct struct {
 	intHidden int
 	IntOmit   int `json:",omitempty"`
 
-	Embedded
+	TEmbedded
 	embedded
 	*EmbeddedPtr
 
@@ -105,7 +105,7 @@ type TextMapKey struct{ string }
 
 func (v TextMapKey) MarshalText() ([]byte, error) { return zgo.S2B(v.string), nil }
 
-type Embedded struct{ EmbedVpub int }
+type TEmbedded struct{ EmbedVpub int }
 
 type EmbeddedPtr struct {
 	EmbedVPtr int `json:"embed_v_ptr"`
@@ -151,8 +151,8 @@ func getTestStruct() Struct {
 
 		intHidden: 123,
 
-		Embedded: Embedded{123},
-		embedded: embedded{3145},
+		TEmbedded: TEmbedded{123},
+		embedded:  embedded{3145},
 
 		EmbeddedPtr: &EmbeddedPtr{789},
 
@@ -193,7 +193,7 @@ func getTestStruct() Struct {
 func TestMarshal(t *testing.T) {
 	v := getTestStruct()
 
-	AddValueEncoder(func(omitEmpty bool) ValueEncoder[[10]byte] {
+	AddValueEncoder(func(flags MarshalFlags) ValueEncoder[[10]byte] {
 		return func(dst []byte, v [10]byte) ([]byte, error) {
 			dst = append(dst, `"custom:`...)
 			dst = zstr.AppendHex(dst, v[:])
