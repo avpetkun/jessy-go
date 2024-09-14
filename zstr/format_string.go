@@ -2,52 +2,78 @@ package zstr
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 	"unicode/utf8"
-
-	"github.com/avpetkun/jessy-go/zgo"
 )
 
 func AppendBase64String(dst, data []byte) []byte {
 	size := base64.StdEncoding.EncodedLen(len(data)) + 2
 
-	dst, out := zgo.AppendBytesFrame(dst, size)
+	i := len(dst)
+	j := i + size
+	if j > cap(dst) {
+		dst = append(dst, make([]byte, size)...)
+	}
+	dst = dst[:j]
 
-	out[0] = '"'
-	base64.StdEncoding.Encode(out[1:], data)
-	out[size-1] = '"'
+	dst[i] = '"'
+	base64.StdEncoding.Encode(dst[i+1:], data)
+	dst[j-1] = '"'
 
 	return dst
 }
 
+const encodeHexTable = "0123456789abcdef"
+
 func AppendHexString(dst, data []byte) []byte {
 	size := len(data)*2 + 4
-	dst, out := zgo.AppendBytesFrame(dst, size)
 
-	out[0] = '"'
-	out[1] = '0'
-	out[2] = 'x'
-	hex.Encode(out[3:], data)
-	out[size-1] = '"'
+	i := len(dst)
+	j := i + size
+	if j > cap(dst) {
+		dst = append(dst, make([]byte, size)...)
+	}
+	dst = dst[:j]
 
+	dst[i] = '"'
+	dst[i+1] = '0'
+	dst[i+2] = 'x'
+	i += 3
+
+	for _, v := range data {
+		dst[i] = encodeHexTable[v>>4]
+		dst[i+1] = encodeHexTable[v&0x0f]
+		i += 2
+	}
+
+	dst[i] = '"'
 	return dst
 }
 
 func AppendHex(dst, data []byte) []byte {
 	size := len(data)*2 + 2
-	dst, out := zgo.AppendBytesFrame(dst, size)
 
-	out[0] = '0'
-	out[1] = 'x'
-	hex.Encode(out[2:], data)
+	i := len(dst)
+	j := i + size
+	if j > cap(dst) {
+		dst = append(dst, make([]byte, size)...)
+	}
+	dst = dst[:j]
+
+	dst[i] = '0'
+	dst[i+1] = 'x'
+	i += 2
+
+	for _, v := range data {
+		dst[i] = encodeHexTable[v>>4]
+		dst[i+1] = encodeHexTable[v&0x0f]
+		i += 2
+	}
 
 	return dst
 }
 
 // from encoding/json.AppendString
 func AppendString(dst, src []byte) []byte {
-	const hex = "0123456789abcdef"
-
 	dst = append(dst, '"')
 	start := 0
 	srcLen := len(src)
@@ -76,7 +102,7 @@ func AppendString(dst, src []byte) []byte {
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON
 				// and served to some browsers.
-				dst = append(dst, '\\', 'u', '0', '0', hex[b>>4], hex[b&0xF])
+				dst = append(dst, '\\', 'u', '0', '0', encodeHexTable[b>>4], encodeHexTable[b&0xF])
 			}
 			i++
 			start = i
@@ -107,7 +133,7 @@ func AppendString(dst, src []byte) []byte {
 		// See https://en.wikipedia.org/wiki/JSON#Safety.
 		if c == '\u2028' || c == '\u2029' {
 			dst = append(dst, src[start:i]...)
-			dst = append(dst, '\\', 'u', '2', '0', '2', hex[c&0xF])
+			dst = append(dst, '\\', 'u', '2', '0', '2', encodeHexTable[c&0xF])
 			i += size
 			start = i
 			continue
