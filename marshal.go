@@ -19,7 +19,7 @@ var (
 	customEncoders []customEncoder
 )
 
-type MarshalFlags byte
+type MarshalFlags int32
 
 const (
 	MarshalDefault   MarshalFlags = 0
