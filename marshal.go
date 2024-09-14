@@ -170,15 +170,11 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 
 		if f.Anonymous {
 			fields = append(fields, Field{
-				Key:     ",",
 				KeyLen:  1,
 				Encoder: getFieldEncoder(deep, int(f.Offset), f.Type, true, omitEmpty),
 			})
 		} else if f.IsExported() {
 			key := `"` + name + `":`
-			if i > 0 {
-				key = "," + key
-			}
 			fields = append(fields, Field{
 				Key:     key,
 				KeyLen:  len(key),
@@ -189,8 +185,11 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 	if isEmbedded {
 		return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
 			v = unsafe.Add(v, offset)
+			was := 0
 			for i := range fields {
-				// TODO: correct ,
+				if was != 0 {
+					dst = append(dst, ',')
+				}
 				dst = append(dst, fields[i].Key...)
 				dstLen := len(dst)
 				dst, err = fields[i].Encoder(dst, v)
@@ -198,7 +197,9 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 					return dst, err
 				}
 				if len(dst) == dstLen {
-					dst = dst[:dstLen-fields[i].KeyLen]
+					dst = dst[:dstLen-fields[i].KeyLen-was]
+				} else {
+					was = 1
 				}
 			}
 			return dst, nil
@@ -207,8 +208,11 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
 		v = unsafe.Add(v, offset)
 		dst = append(dst, '{')
+		was := 0
 		for i := range fields {
-			// TODO: correct ,
+			if was != 0 {
+				dst = append(dst, ',')
+			}
 			dst = append(dst, fields[i].Key...)
 			dstLen := len(dst)
 			dst, err = fields[i].Encoder(dst, v)
@@ -216,7 +220,9 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 				return dst, err
 			}
 			if len(dst) == dstLen {
-				dst = dst[:dstLen-fields[i].KeyLen]
+				dst = dst[:dstLen-fields[i].KeyLen-was]
+			} else {
+				was = 1
 			}
 		}
 		dst = append(dst, '}')
@@ -257,9 +263,9 @@ func mapKeyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 		}
 		var err error
 		dst = append(dst, '{')
-		was := false
+		was := 0
 		for range count {
-			if was {
+			if was != 0 {
 				dst = append(dst, ',')
 			}
 			dstLen0 := len(dst)
@@ -269,7 +275,7 @@ func mapKeyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 				return dst, err
 			}
 			if len(dst) == dstLen0 {
-				dst = dst[:dstLen0-1]
+				dst = dst[:dstLen0-was]
 				continue
 			}
 			dst = append(dst, ':')
@@ -280,11 +286,11 @@ func mapKeyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 				return dst, err
 			}
 			if len(dst) == dstLen1 {
-				dst = dst[:dstLen0-1]
+				dst = dst[:dstLen0-was]
 				continue
 			}
 
-			was = true
+			was = 1
 			it.Next()
 		}
 		it.Release()
@@ -311,9 +317,9 @@ func mapKeyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 		}
 		var err error
 		dst = append(dst, '{')
-		was := false
+		was := 0
 		for range count {
-			if was {
+			if was != 0 {
 				dst = append(dst, ',')
 			}
 			dstLen0 := len(dst)
@@ -323,7 +329,7 @@ func mapKeyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 				return dst, err
 			}
 			if len(dst) == dstLen0 {
-				dst = dst[:dstLen0-1]
+				dst = dst[:dstLen0-was]
 				continue
 			}
 
@@ -338,11 +344,11 @@ func mapKeyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 				return dst, err
 			}
 			if len(dst) == dstLen1 {
-				dst = dst[:dstLen0-1]
+				dst = dst[:dstLen0-was]
 				continue
 			}
 
-			was = true
+			was = 1
 			it.Next()
 		}
 		it.Release()
@@ -369,9 +375,9 @@ func mapAnyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 		}
 		var err error
 		dst = append(dst, '{')
-		was := false
+		was := 0
 		for range count {
-			if was {
+			if was != 0 {
 				dst = append(dst, ',')
 			}
 
@@ -385,7 +391,7 @@ func mapAnyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 				return dst, err
 			}
 			if len(dst) == dstLen0 {
-				dst = dst[:dstLen0-1]
+				dst = dst[:dstLen0-was]
 				continue
 			}
 			dst = append(dst, ':')
@@ -396,11 +402,11 @@ func mapAnyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 				return dst, err
 			}
 			if len(dst) == dstLen1 {
-				dst = dst[:dstLen0-1]
+				dst = dst[:dstLen0-was]
 				continue
 			}
 
-			was = true
+			was = 1
 			it.Next()
 		}
 		it.Release()
@@ -426,9 +432,9 @@ func mapAnyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 		}
 		var err error
 		dst = append(dst, '{')
-		was := false
+		was := 0
 		for range count {
-			if was {
+			if was != 0 {
 				dst = append(dst, ',')
 			}
 			dstLen0 := len(dst)
@@ -442,7 +448,7 @@ func mapAnyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 				return dst, err
 			}
 			if len(dst) == dstLen0 {
-				dst = dst[:dstLen0-1]
+				dst = dst[:dstLen0-was]
 				continue
 			}
 			dst = append(dst, ':')
@@ -457,11 +463,11 @@ func mapAnyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 				return dst, err
 			}
 			if len(dst) == dstLen1 {
-				dst = dst[:dstLen0-1]
+				dst = dst[:dstLen0-was]
 				continue
 			}
 
-			was = true
+			was = 1
 			it.Next()
 		}
 		it.Release()
