@@ -17,7 +17,9 @@ var (
 	MarshalMaxDeep = 10
 
 	customEncoders []customEncoder
-	encodersCache  sync.Map
+
+	encodersDefaultCache sync.Map
+	encodersQuoteCache   sync.Map
 )
 
 type MarshalFlags byte
@@ -60,20 +62,32 @@ func Marshal(value any) (data []byte, err error) {
 
 func AppendMarshal(dst []byte, value any) (data []byte, err error) {
 	eface := zgo.UnpackEface(value)
-	enc := getTypeEncoder(eface.Type)
+	enc := getTypeEncoder(eface.Type, MarshalDefault)
 	return enc(dst, eface.Value)
 }
 
-func getTypeEncoder(typ *zgo.Type) UnsafeEncoder {
-	if val, ok := encodersCache.Load(typ); ok {
+func getTypeEncoder(typ *zgo.Type, flags MarshalFlags) UnsafeEncoder {
+	if flags == MarshalDefault {
+		if val, ok := encodersDefaultCache.Load(typ); ok {
+			return val.(UnsafeEncoder)
+		}
+		t := typ.Native()
+		if t.Kind() == reflect.Pointer {
+			t = t.Elem()
+		}
+		enc := getFieldEncoder(0, 0, t, MarshalDefault)
+		encodersDefaultCache.Store(typ, enc)
+		return enc
+	}
+	if val, ok := encodersQuoteCache.Load(typ); ok {
 		return val.(UnsafeEncoder)
 	}
 	t := typ.Native()
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	enc := getFieldEncoder(0, 0, t, MarshalDefault)
-	encodersCache.Store(typ, enc)
+	enc := getFieldEncoder(0, 0, t, MarshalQuote)
+	encodersQuoteCache.Store(typ, enc)
 	return enc
 }
 
@@ -146,6 +160,11 @@ func getFieldEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) Unsaf
 		return float32Encoder(offset, flags)
 	case reflect.Float64:
 		return float64Encoder(offset, flags)
+	case reflect.Interface:
+		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+			eface := (*zgo.EmptyInterface)(unsafe.Add(value, offset))
+			return getTypeEncoder(eface.Type, flags)(dst, eface.Value)
+		}
 	default:
 		return nopEncoder
 	}
@@ -227,21 +246,6 @@ func structEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeE
 }
 
 func mapEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeEncoder {
-	keyAny := t.Key().Kind() == reflect.Interface
-	elemAny := t.Elem().Kind() == reflect.Interface
-	if keyAny {
-		if elemAny {
-			return mapAnyAnyEncoder(deep, offset, t, flags)
-		}
-		return mapAnyValEncoder(deep, offset, t, flags)
-	}
-	if elemAny {
-		return mapKeyAnyEncoder(deep, offset, t, flags)
-	}
-	return mapKeyValEncoder(deep, offset, t, flags)
-}
-
-func mapKeyValEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeEncoder {
 	encodeKey := getFieldEncoder(deep, 0, t.Key(), MarshalQuote)
 	encodeVal := getFieldEncoder(deep, 0, t.Elem(), MarshalDefault)
 	getIterator := zgo.NewPointerMapIteratorForType(t)
@@ -266,7 +270,7 @@ func mapKeyValEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) Unsa
 				dst = append(dst, ',')
 			}
 			dstLen0 := len(dst)
-			dst, err = encodeKey(dst, it.Key) // TODO: quote
+			dst, err = encodeKey(dst, it.Key)
 			if err != nil {
 				it.Release()
 				return dst, err
@@ -278,183 +282,6 @@ func mapKeyValEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) Unsa
 			dst = append(dst, ':')
 			dstLen1 := len(dst)
 			dst, err = encodeVal(dst, it.Elem)
-			if err != nil {
-				it.Release()
-				return dst, err
-			}
-			if len(dst) == dstLen1 {
-				dst = dst[:dstLen0-was]
-				continue
-			}
-
-			was = 1
-			it.Next()
-		}
-		it.Release()
-		dst = append(dst, '}')
-		return dst, nil
-	}
-}
-
-func mapKeyAnyEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeEncoder {
-	encodeKey := getFieldEncoder(deep, 0, t.Key(), MarshalQuote)
-	getIterator := zgo.NewPointerMapIteratorForType(t)
-
-	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
-		it, count := getIterator(unsafe.Add(value, offset))
-		if it == nil {
-			if flags&MarshalOmitEmpty != 0 {
-				return dst, nil
-			}
-			return append(dst, 'n', 'u', 'l', 'l'), nil
-		}
-		if count == 0 {
-			it.Release()
-			return append(dst, '{', '}'), nil
-		}
-		var err error
-		dst = append(dst, '{')
-		was := 0
-		for range count {
-			if was != 0 {
-				dst = append(dst, ',')
-			}
-			dstLen0 := len(dst)
-			dst, err = encodeKey(dst, it.Key) // TODO: quote
-			if err != nil {
-				it.Release()
-				return dst, err
-			}
-			if len(dst) == dstLen0 {
-				dst = dst[:dstLen0-was]
-				continue
-			}
-
-			eface := (*zgo.EmptyInterface)(it.Elem)
-			encodeVal := getTypeEncoder(eface.Type)
-
-			dst = append(dst, ':')
-			dstLen1 := len(dst)
-			dst, err = encodeVal(dst, eface.Value)
-			if err != nil {
-				it.Release()
-				return dst, err
-			}
-			if len(dst) == dstLen1 {
-				dst = dst[:dstLen0-was]
-				continue
-			}
-
-			was = 1
-			it.Next()
-		}
-		it.Release()
-		dst = append(dst, '}')
-		return dst, nil
-	}
-}
-
-func mapAnyValEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeEncoder {
-	encodeVal := getFieldEncoder(deep, 0, t.Elem(), MarshalDefault)
-	getIterator := zgo.NewPointerMapIteratorForType(t)
-
-	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
-		it, count := getIterator(unsafe.Add(value, offset))
-		if it == nil {
-			if flags&MarshalOmitEmpty != 0 {
-				return dst, nil
-			}
-			return append(dst, 'n', 'u', 'l', 'l'), nil
-		}
-		if count == 0 {
-			it.Release()
-			return append(dst, '{', '}'), nil
-		}
-		var err error
-		dst = append(dst, '{')
-		was := 0
-		for range count {
-			if was != 0 {
-				dst = append(dst, ',')
-			}
-
-			eface := (*zgo.EmptyInterface)(it.Key)
-			encodeKey := getTypeEncoder(eface.Type)
-
-			dstLen0 := len(dst)
-			dst, err = encodeKey(dst, eface.Value) // TODO: quote
-			if err != nil {
-				it.Release()
-				return dst, err
-			}
-			if len(dst) == dstLen0 {
-				dst = dst[:dstLen0-was]
-				continue
-			}
-			dst = append(dst, ':')
-			dstLen1 := len(dst)
-			dst, err = encodeVal(dst, it.Elem)
-			if err != nil {
-				it.Release()
-				return dst, err
-			}
-			if len(dst) == dstLen1 {
-				dst = dst[:dstLen0-was]
-				continue
-			}
-
-			was = 1
-			it.Next()
-		}
-		it.Release()
-		dst = append(dst, '}')
-		return dst, nil
-	}
-}
-
-func mapAnyAnyEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeEncoder {
-	getIterator := zgo.NewPointerMapIteratorForType(t)
-
-	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
-		it, count := getIterator(unsafe.Add(value, offset))
-		if it == nil {
-			if flags&MarshalOmitEmpty != 0 {
-				return dst, nil
-			}
-			return append(dst, 'n', 'u', 'l', 'l'), nil
-		}
-		if count == 0 {
-			it.Release()
-			return append(dst, '{', '}'), nil
-		}
-		var err error
-		dst = append(dst, '{')
-		was := 0
-		for range count {
-			if was != 0 {
-				dst = append(dst, ',')
-			}
-			dstLen0 := len(dst)
-
-			eface := (*zgo.EmptyInterface)(it.Key)
-			encodeKey := getTypeEncoder(eface.Type)
-
-			dst, err = encodeKey(dst, eface.Value) // TODO: quote
-			if err != nil {
-				it.Release()
-				return dst, err
-			}
-			if len(dst) == dstLen0 {
-				dst = dst[:dstLen0-was]
-				continue
-			}
-			dst = append(dst, ':')
-
-			eface = (*zgo.EmptyInterface)(it.Elem)
-			encodeVal := getTypeEncoder(eface.Type)
-
-			dstLen1 := len(dst)
-			dst, err = encodeVal(dst, eface.Value)
 			if err != nil {
 				it.Release()
 				return dst, err

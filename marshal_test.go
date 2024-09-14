@@ -79,6 +79,9 @@ type Struct struct {
 	MapAnyAny map[any]any
 
 	MarshalMapKey map[TextMapKey]*TMarshalVal
+
+	AnyVal1 any
+	AnyVal2 any
 }
 
 type AppendMarshalVal struct{ data []byte }
@@ -187,6 +190,9 @@ func getTestStruct() Struct {
 			TextMapKey{"b"}: &TMarshalVal{[]byte("b1")},
 			TextMapKey{"c"}: &TMarshalVal{[]byte("c1")},
 		},
+
+		AnyVal1: 123,
+		AnyVal2: "abc",
 	}
 }
 
