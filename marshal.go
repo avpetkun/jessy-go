@@ -219,11 +219,85 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 }
 
 func mapEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEncoder {
-	elem := t.Elem()
-	elemEncoder := getFieldEncoder(deep, 0, elem, false, false)
-	_ = elemEncoder
-	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		return append(dst, 'n', 'u', 'l', 'l'), nil
+	keyAny, elemAny := t.Key().Kind() == reflect.Interface, t.Elem().Kind() == reflect.Interface
+	if keyAny {
+		if elemAny {
+			return mapAnyAnyEncoder(deep, offset, t, omitEmpty)
+		}
+		return mapAnyValEncoder(deep, offset, t, omitEmpty)
+	}
+	if elemAny {
+		return mapKeyAnyEncoder(deep, offset, t, omitEmpty)
+	}
+	return mapKeyValEncoder(deep, offset, t, omitEmpty)
+}
+
+func mapKeyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEncoder {
+	encodeKey := getFieldEncoder(deep, 0, t.Key(), false, false)
+	encodeVal := getFieldEncoder(deep, 0, t.Elem(), false, false)
+	getIterator := zgo.NewPointerMapIteratorForType(t)
+
+	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		it, count := getIterator(unsafe.Add(value, offset))
+		if count == -1 {
+			if omitEmpty {
+				return dst, nil
+			}
+			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
+		if count == 0 {
+			return append(dst, '{', '}'), nil
+		}
+		var err error
+		dst = append(dst, '{')
+		was := false
+		for range count {
+			if was {
+				dst = append(dst, ',')
+			}
+			dstLen0 := len(dst)
+			dst, err = encodeKey(dst, it.Key) // TODO: quote
+			if err != nil {
+				return dst, err
+			}
+			if len(dst) == dstLen0 {
+				dst = dst[:dstLen0-1]
+				continue
+			}
+			dst = append(dst, ':')
+			dstLen1 := len(dst)
+			dst, err = encodeVal(dst, it.Elem)
+			if err != nil {
+				return dst, err
+			}
+			if len(dst) == dstLen1 {
+				dst = dst[:dstLen0-1]
+				continue
+			}
+
+			was = true
+			it.Next()
+		}
+		dst = append(dst, '}')
+		return dst, nil
+	}
+}
+
+func mapKeyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEncoder {
+	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		return dst, nil
+	}
+}
+
+func mapAnyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEncoder {
+	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		return dst, nil
+	}
+}
+
+func mapAnyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEncoder {
+	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		return dst, nil
 	}
 }
 
@@ -251,7 +325,7 @@ func pointerEncoder(deep, offset int, t reflect.Type, isEmbedded, omitEmpty bool
 
 func stringEncoder(offset int, omitEmpty bool) UnsafeEncoder {
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		h := (*zgo.StringHeader)(unsafe.Add(v, offset))
+		h := (*zgo.String)(unsafe.Add(v, offset))
 		if h.Len == 0 {
 			if omitEmpty {
 				return dst, nil
@@ -272,7 +346,7 @@ func sliceEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEncode
 	elemSize := elem.Size()
 	elemEncoder := getFieldEncoder(deep, 0, elem, false, false)
 	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
-		h := (*zgo.SliceHeader)(unsafe.Add(v, offset))
+		h := (*zgo.Slice)(unsafe.Add(v, offset))
 		if h.Len == 0 {
 			if omitEmpty {
 				return dst, nil

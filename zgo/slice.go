@@ -2,14 +2,14 @@ package zgo
 
 import "unsafe"
 
-type SliceHeader struct {
+type Slice struct {
 	Data uintptr
 	Len  uintptr
 	Cap  uintptr
 }
 
 func MakeSliceBytes(data unsafe.Pointer, size, cap uintptr) []byte {
-	return *(*[]byte)(unsafe.Pointer(&SliceHeader{
+	return *(*[]byte)(unsafe.Pointer(&Slice{
 		Data: uintptr(data),
 		Len:  size,
 		Cap:  cap,
@@ -25,16 +25,4 @@ func AppendBytesFrame(s []byte, n int) (newS, frame []byte) {
 	newS = s[:s1]
 	frame = s[s0:s1]
 	return
-}
-
-// problems ?
-func MakeDirtyBytes(size int) []byte {
-	usize := uintptr(size)
-	p := Mallocgc(usize, nil, false)
-	h := SliceHeader{
-		Data: uintptr(p),
-		Len:  usize,
-		Cap:  usize,
-	}
-	return *(*[]byte)(unsafe.Pointer(&h))
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/avpetkun/jessy-go/zgo"
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
@@ -67,6 +68,17 @@ type Struct struct {
 	AppendMarshalVal AppendMarshalVal
 
 	TMarhalVal TMarshalVal
+
+	NilMap  map[string]int
+	OmitMap map[string]int `json:",omitempty"`
+
+	MapValVal map[string]int
+	MapEmpty  map[string]int
+	MapKeyAny map[any]int
+	MapValAny map[int]any
+	MapAnyAny map[any]any
+
+	MarshalMapKey map[TextMapKey]*TMarshalVal
 }
 
 type AppendMarshalVal struct{ data []byte }
@@ -88,6 +100,10 @@ func (s *JMarshalPtr) MarshalJSON() ([]byte, error) { return s.Data, nil }
 type JMarshalVal struct{ Data []byte }
 
 func (s JMarshalVal) MarshalJSON() ([]byte, error) { return s.Data, nil }
+
+type TextMapKey struct{ string }
+
+func (v TextMapKey) MarshalText() ([]byte, error) { return zgo.S2B(v.string), nil }
 
 type Embedded struct{ EmbedVpub int }
 
@@ -156,6 +172,21 @@ func getTestStruct() Struct {
 		TMarhalVal: TMarshalVal{[]byte("TMarhalVal")},
 
 		AppendMarshalVal: AppendMarshalVal{[]byte(`"AppendMarshalVal"`)},
+
+		NilMap:  nil,
+		OmitMap: nil,
+
+		MapValVal: map[string]int{"a": 1, "b": 2},
+		MapEmpty:  map[string]int{},
+		MapKeyAny: map[any]int{1: 2, 3: 4},
+		MapValAny: map[int]any{1: 2, 2: "b"},
+		MapAnyAny: map[any]any{1: "a", "b": 2},
+
+		MarshalMapKey: map[TextMapKey]*TMarshalVal{
+			TextMapKey{"a"}: &TMarshalVal{[]byte("a1")},
+			TextMapKey{"b"}: &TMarshalVal{[]byte("b1")},
+			TextMapKey{"c"}: &TMarshalVal{[]byte("c1")},
+		},
 	}
 }
 

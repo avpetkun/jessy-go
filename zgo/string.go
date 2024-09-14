@@ -2,7 +2,7 @@ package zgo
 
 import "unsafe"
 
-type StringHeader struct {
+type String struct {
 	Data *byte
 	Len  int
 }
