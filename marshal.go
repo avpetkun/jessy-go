@@ -150,6 +150,7 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 		KeyLen  int
 		Encoder UnsafeEncoder
 	}
+	// TODO: sort
 	fields := []Field{}
 	for i := range t.NumField() {
 		f := t.Field(i)
@@ -189,6 +190,7 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 		return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
 			v = unsafe.Add(v, offset)
 			for i := range fields {
+				// TODO: correct ,
 				dst = append(dst, fields[i].Key...)
 				dstLen := len(dst)
 				dst, err = fields[i].Encoder(dst, v)
@@ -206,6 +208,7 @@ func structEncoder(deep, offset int, t reflect.Type, isEmbedded bool) UnsafeEnco
 		v = unsafe.Add(v, offset)
 		dst = append(dst, '{')
 		for i := range fields {
+			// TODO: correct ,
 			dst = append(dst, fields[i].Key...)
 			dstLen := len(dst)
 			dst, err = fields[i].Encoder(dst, v)
