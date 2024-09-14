@@ -242,13 +242,14 @@ func mapKeyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 		it, count := getIterator(unsafe.Add(value, offset))
-		if count == -1 {
+		if it == nil {
 			if omitEmpty {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
 		}
 		if count == 0 {
+			it.Release()
 			return append(dst, '{', '}'), nil
 		}
 		var err error
@@ -261,6 +262,7 @@ func mapKeyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			dstLen0 := len(dst)
 			dst, err = encodeKey(dst, it.Key) // TODO: quote
 			if err != nil {
+				it.Release()
 				return dst, err
 			}
 			if len(dst) == dstLen0 {
@@ -271,6 +273,7 @@ func mapKeyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			dstLen1 := len(dst)
 			dst, err = encodeVal(dst, it.Elem)
 			if err != nil {
+				it.Release()
 				return dst, err
 			}
 			if len(dst) == dstLen1 {
@@ -281,6 +284,7 @@ func mapKeyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			was = true
 			it.Next()
 		}
+		it.Release()
 		dst = append(dst, '}')
 		return dst, nil
 	}
@@ -292,13 +296,14 @@ func mapKeyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 		it, count := getIterator(unsafe.Add(value, offset))
-		if count == -1 {
+		if it == nil {
 			if omitEmpty {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
 		}
 		if count == 0 {
+			it.Release()
 			return append(dst, '{', '}'), nil
 		}
 		var err error
@@ -311,6 +316,7 @@ func mapKeyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			dstLen0 := len(dst)
 			dst, err = encodeKey(dst, it.Key) // TODO: quote
 			if err != nil {
+				it.Release()
 				return dst, err
 			}
 			if len(dst) == dstLen0 {
@@ -325,6 +331,7 @@ func mapKeyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			dstLen1 := len(dst)
 			dst, err = encodeVal(dst, eface.Value)
 			if err != nil {
+				it.Release()
 				return dst, err
 			}
 			if len(dst) == dstLen1 {
@@ -335,6 +342,7 @@ func mapKeyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			was = true
 			it.Next()
 		}
+		it.Release()
 		dst = append(dst, '}')
 		return dst, nil
 	}
@@ -346,13 +354,14 @@ func mapAnyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 		it, count := getIterator(unsafe.Add(value, offset))
-		if count == -1 {
+		if it == nil {
 			if omitEmpty {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
 		}
 		if count == 0 {
+			it.Release()
 			return append(dst, '{', '}'), nil
 		}
 		var err error
@@ -369,6 +378,7 @@ func mapAnyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			dstLen0 := len(dst)
 			dst, err = encodeKey(dst, eface.Value) // TODO: quote
 			if err != nil {
+				it.Release()
 				return dst, err
 			}
 			if len(dst) == dstLen0 {
@@ -379,6 +389,7 @@ func mapAnyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			dstLen1 := len(dst)
 			dst, err = encodeVal(dst, it.Elem)
 			if err != nil {
+				it.Release()
 				return dst, err
 			}
 			if len(dst) == dstLen1 {
@@ -389,6 +400,7 @@ func mapAnyValEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			was = true
 			it.Next()
 		}
+		it.Release()
 		dst = append(dst, '}')
 		return dst, nil
 	}
@@ -399,13 +411,14 @@ func mapAnyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 		it, count := getIterator(unsafe.Add(value, offset))
-		if count == -1 {
+		if it == nil {
 			if omitEmpty {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
 		}
 		if count == 0 {
+			it.Release()
 			return append(dst, '{', '}'), nil
 		}
 		var err error
@@ -422,6 +435,7 @@ func mapAnyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 
 			dst, err = encodeKey(dst, eface.Value) // TODO: quote
 			if err != nil {
+				it.Release()
 				return dst, err
 			}
 			if len(dst) == dstLen0 {
@@ -436,6 +450,7 @@ func mapAnyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			dstLen1 := len(dst)
 			dst, err = encodeVal(dst, eface.Value)
 			if err != nil {
+				it.Release()
 				return dst, err
 			}
 			if len(dst) == dstLen1 {
@@ -446,6 +461,7 @@ func mapAnyAnyEncoder(deep, offset int, t reflect.Type, omitEmpty bool) UnsafeEn
 			was = true
 			it.Next()
 		}
+		it.Release()
 		dst = append(dst, '}')
 		return dst, nil
 	}

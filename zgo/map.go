@@ -2,6 +2,7 @@ package zgo
 
 import (
 	"reflect"
+	"sync"
 	"unsafe"
 )
 
@@ -14,32 +15,39 @@ func mapIterInitPointer(t unsafe.Pointer, m *Map, it *MapIterator)
 //go:linkname mapIterNext runtime.mapiternext
 func mapIterNext(it *MapIterator)
 
-func NewValueMapIterator(value any) (it MapIterator, count int) {
+func GetMapTypePointerByType(t reflect.Type) unsafe.Pointer {
+	return UnpackEface(t).Value
+}
+
+func NewValueMapIterator(value any) (it *MapIterator, count int) {
+	it = mapIteratorPool.Get().(*MapIterator)
 	eface := *(*EmptyInterface)(unsafe.Pointer(&value))
 	if eface.Type == nil || eface.Value == nil {
-		count = -1
 		return
 	}
 	hmap := (*Map)(eface.Value)
-	mapIterInitType(eface.Type, hmap, &it)
+	mapIterInitType(eface.Type, hmap, it)
 	count = hmap.Count
 	return
 }
 
-func NewPointerMapIteratorForType(rType reflect.Type) (getIterator func(valuePtr unsafe.Pointer) (it MapIterator, count int)) {
+func NewPointerMapIteratorForType(rType reflect.Type) (getIterator func(valuePtr unsafe.Pointer) (it *MapIterator, count int)) {
 	mapType := UnpackEface(rType).Value
-	return func(value unsafe.Pointer) (it MapIterator, count int) {
+
+	return func(value unsafe.Pointer) (it *MapIterator, count int) {
 		value = *(*unsafe.Pointer)(value)
 		if value == nil {
-			count = -1
 			return
 		}
 		hmap := (*Map)(value)
-		mapIterInitPointer(mapType, hmap, &it)
+		it = mapIteratorPool.Get().(*MapIterator)
+		mapIterInitPointer(mapType, hmap, it)
 		count = hmap.Count
 		return
 	}
 }
+
+var mapIteratorPool = sync.Pool{New: func() any { return new(MapIterator) }}
 
 type MapIterator struct {
 	Key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/compile/internal/walk/range.go).
@@ -61,6 +69,11 @@ type MapIterator struct {
 
 func (it *MapIterator) Next() {
 	mapIterNext(it)
+}
+
+func (it *MapIterator) Release() {
+	*it = MapIterator{}
+	mapIteratorPool.Put(it)
 }
 
 type Map struct {
