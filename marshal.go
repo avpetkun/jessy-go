@@ -361,11 +361,11 @@ func mapEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeEnco
 func keyPointerEncoder(t reflect.Type) UnsafeEncoder {
 	elemEncoder := getKeyEncoder(t.Elem())
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		vp := *(*uintptr)(v)
-		if vp == 0 {
+		vp := *(*unsafe.Pointer)(v)
+		if vp == nil {
 			return append(dst, 'n', 'u', 'l', 'l'), nil
 		}
-		return elemEncoder(dst, unsafe.Pointer(vp))
+		return elemEncoder(dst, vp)
 	}
 }
 
@@ -373,14 +373,14 @@ func pointerEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) Unsafe
 	elemEncoder := getValEncoder(deep, 0, t.Elem(), flags)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
-		vp := *(*uintptr)(v)
-		if vp == 0 {
+		vp := *(*unsafe.Pointer)(v)
+		if vp == nil {
 			if flags&MarshalOmitEmpty != 0 {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
 		}
-		return elemEncoder(dst, unsafe.Pointer(vp))
+		return elemEncoder(dst, vp)
 	}
 }
 

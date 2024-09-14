@@ -186,9 +186,9 @@ func getTestStruct() Struct {
 		MapAnyAny: map[any]any{1: "a", "b": 2},
 
 		MarshalMapKey: map[TextMapKey]*TMarshalVal{
-			TextMapKey{"a"}: &TMarshalVal{[]byte("a1")},
-			TextMapKey{"b"}: &TMarshalVal{[]byte("b1")},
-			TextMapKey{"c"}: &TMarshalVal{[]byte("c1")},
+			{"a"}: {[]byte("a1")},
+			{"b"}: {[]byte("b1")},
+			{"c"}: {[]byte("c1")},
 		},
 
 		AnyVal1: 123,
