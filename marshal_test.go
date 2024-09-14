@@ -74,7 +74,7 @@ type Struct struct {
 
 	MapValVal map[string]int
 	MapEmpty  map[string]int
-	MapKeyAny map[any]int
+	MapAnyVal map[any]int
 	MapValAny map[int]any
 	MapAnyAny map[any]any
 
@@ -178,7 +178,7 @@ func getTestStruct() Struct {
 
 		MapValVal: map[string]int{"a": 1, "b": 2},
 		MapEmpty:  map[string]int{},
-		MapKeyAny: map[any]int{1: 2, 3: 4},
+		MapAnyVal: map[any]int{1: 2, 3: 4},
 		MapValAny: map[int]any{1: 2, 2: "b"},
 		MapAnyAny: map[any]any{1: "a", "b": 2},
 
