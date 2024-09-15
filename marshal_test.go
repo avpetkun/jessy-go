@@ -236,7 +236,7 @@ func TestMarshalLoop(t *testing.T) {
 
 	var data []byte
 	for {
-		data, _ = AppendMarshal(data[:0], vp)
+		data, _ = AppendMarshalFast(data[:0], vp)
 	}
 }
 
@@ -244,12 +244,11 @@ func BenchmarkMarshal(b *testing.B) {
 	vv := getTestStruct()
 	value := &vv
 
-	buf := make([]byte, 1024)
-
 	b.Run("jessy", func(b *testing.B) {
+		buf := make([]byte, 1024)
 		b.ResetTimer()
 		for range b.N {
-			buf, _ = AppendMarshal(buf[:0], value)
+			buf, _ = AppendMarshalFast(buf[:0], value)
 		}
 	})
 	b.Run("json", func(b *testing.B) {

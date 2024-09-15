@@ -34,11 +34,14 @@ func (flags Flags) excludes(flagsToExclude ...Flags) Flags {
 }
 
 const (
-	emptyFlags   Flags = 0
-	embeddedFlag Flags = 1 << 0
-	OmitEmpty    Flags = 1 << 1
-	NeedQuotes   Flags = 1 << 2
-	EscapeHTML   Flags = 1 << 3
+	Fastest   Flags = 0
+	OmitEmpty Flags = 1 << (iota - 1)
+	NeedQuotes
+	EscapeHTML
+	embeddedFlag
+	flagsLen
+
+	Standard = NeedQuotes | EscapeHTML
 )
 
 type UnsafeEncoder func(dst []byte, value unsafe.Pointer) ([]byte, error)
@@ -66,36 +69,34 @@ func AddValueEncoder[T any](encoder func(flags Flags) ValueEncoder[T]) {
 }
 
 func Marshal(value any) (data []byte, err error) {
-	return AppendMarshal(nil, value)
+	return AppendMarshalFlags(nil, value, Standard)
 }
 
 func AppendMarshal(dst []byte, value any) (data []byte, err error) {
+	return AppendMarshalFlags(dst, value, Standard)
+}
+
+func MarshalFast(value any) (data []byte, err error) {
+	return AppendMarshalFlags(nil, value, Fastest)
+}
+
+func AppendMarshalFast(dst []byte, value any) (data []byte, err error) {
+	return AppendMarshalFlags(dst, value, Fastest)
+}
+
+func AppendMarshalFlags(dst []byte, value any, flags Flags) (data []byte, err error) {
 	eface := zgo.UnpackEface(value)
 	if eface.Type == nil {
 		return append(dst, 'n', 'u', 'l', 'l'), nil
 	}
-	enc := getValHtmlTypeEncoder(eface.Type)
+	enc := getValTypeEncoder(eface.Type, flags)
 	return enc(dst, eface.Value)
 }
 
-func MarshalNoHTML(value any) (data []byte, err error) {
-	return AppendMarshalNoHTML(nil, value)
-}
+var encodersValCache [flagsLen]sync.Map
 
-func AppendMarshalNoHTML(dst []byte, value any) (data []byte, err error) {
-	eface := zgo.UnpackEface(value)
-	if eface.Type == nil {
-		return append(dst, 'n', 'u', 'l', 'l'), nil
-	}
-	enc := getValNoHtmlTypeEncoder(eface.Type)
-	return enc(dst, eface.Value)
-}
-
-var encodersValHtmlCache sync.Map
-var encodersValNoHtmlCache sync.Map
-
-func getValHtmlTypeEncoder(typ *zgo.Type) UnsafeEncoder {
-	if val, ok := encodersValHtmlCache.Load(typ); ok {
+func getValTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
+	if val, ok := encodersValCache[flags].Load(typ); ok {
 		return val.(UnsafeEncoder)
 	}
 	t := typ.Native()
@@ -103,20 +104,7 @@ func getValHtmlTypeEncoder(typ *zgo.Type) UnsafeEncoder {
 		t = t.Elem()
 	}
 	enc := getValEncoder(0, 0, t, EscapeHTML)
-	encodersValHtmlCache.Store(typ, enc)
-	return enc
-}
-
-func getValNoHtmlTypeEncoder(typ *zgo.Type) UnsafeEncoder {
-	if val, ok := encodersValNoHtmlCache.Load(typ); ok {
-		return val.(UnsafeEncoder)
-	}
-	t := typ.Native()
-	if t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	enc := getValEncoder(0, 0, t, emptyFlags)
-	encodersValNoHtmlCache.Store(typ, enc)
+	encodersValCache[flags].Store(typ, enc)
 	return enc
 }
 
@@ -190,26 +178,19 @@ func getValEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder
 	case reflect.Float64:
 		return float64Encoder(offset, flags)
 	case reflect.Interface:
-		if flags.Has(EscapeHTML) {
-			return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
-				eface := (*zgo.EmptyInterface)(unsafe.Add(value, offset))
-				return getValHtmlTypeEncoder(eface.Type)(dst, eface.Value)
-			}
-		}
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			eface := (*zgo.EmptyInterface)(unsafe.Add(value, offset))
-			return getValNoHtmlTypeEncoder(eface.Type)(dst, eface.Value)
+			return getValTypeEncoder(eface.Type, flags)(dst, eface.Value)
 		}
 	default:
 		return nopEncoder
 	}
 }
 
-var encodersKeyCache sync.Map
-var encodersKeyHtmlCache sync.Map
+var encodersKeyCache [flagsLen]sync.Map
 
 func getKeyTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
-	if val, ok := encodersKeyCache.Load(typ); ok {
+	if val, ok := encodersKeyCache[flags].Load(typ); ok {
 		return val.(UnsafeEncoder)
 	}
 	t := typ.Native()
@@ -217,20 +198,7 @@ func getKeyTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
 		t = t.Elem()
 	}
 	enc := getKeyEncoder(t, flags)
-	encodersKeyCache.Store(typ, enc)
-	return enc
-}
-
-func getKeyTypeHtmlEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
-	if val, ok := encodersKeyHtmlCache.Load(typ); ok {
-		return val.(UnsafeEncoder)
-	}
-	t := typ.Native()
-	if t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	enc := getKeyEncoder(t, flags)
-	encodersKeyHtmlCache.Store(typ, enc)
+	encodersKeyCache[flags].Store(typ, enc)
 	return enc
 }
 
@@ -282,12 +250,6 @@ func getKeyEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	case reflect.Float64:
 		return float64Encoder(0, flags)
 	case reflect.Interface:
-		if flags.Has(EscapeHTML) {
-			return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
-				eface := (*zgo.EmptyInterface)(value)
-				return getKeyTypeHtmlEncoder(eface.Type, flags)(dst, eface.Value)
-			}
-		}
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			eface := (*zgo.EmptyInterface)(value)
 			return getKeyTypeEncoder(eface.Type, flags)(dst, eface.Value)
