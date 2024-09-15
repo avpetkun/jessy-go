@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	_ "net/http/pprof"
 	"testing"
 
 	"github.com/avpetkun/jessy-go/zgo"
@@ -201,7 +203,7 @@ func getTestStruct() Struct {
 func TestMarshal(t *testing.T) {
 	v := getTestStruct()
 
-	AddValueEncoder(func(flags MarshalFlags) ValueEncoder[[10]byte] {
+	AddValueEncoder(func(flags Flags) ValueEncoder[[10]byte] {
 		return func(dst []byte, v [10]byte) ([]byte, error) {
 			dst = append(dst, `"custom:`...)
 			dst = zstr.AppendHex(dst, v[:])
@@ -213,6 +215,29 @@ func TestMarshal(t *testing.T) {
 	data, err := Marshal(&v)
 	fmt.Println("TestMarshal data", string(data))
 	fmt.Println("TestMarshal err", err)
+}
+
+func TestMarshalLoop(t *testing.T) {
+	t.SkipNow()
+
+	go http.ListenAndServe(":4114", nil)
+
+	v := getTestStruct()
+	vp := &v
+
+	AddValueEncoder(func(flags Flags) ValueEncoder[[10]byte] {
+		return func(dst []byte, v [10]byte) ([]byte, error) {
+			dst = append(dst, `"custom:`...)
+			dst = zstr.AppendHex(dst, v[:])
+			dst = append(dst, '"')
+			return dst, nil
+		}
+	})
+
+	var data []byte
+	for {
+		data, _ = AppendMarshal(data[:0], vp)
+	}
 }
 
 func BenchmarkMarshal(b *testing.B) {
