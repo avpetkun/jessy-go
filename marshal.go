@@ -305,7 +305,7 @@ func structEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeE
 func mapEncoder(deep, offset int, t reflect.Type, flags MarshalFlags) UnsafeEncoder {
 	encodeKey := getKeyEncoder(t.Key())
 	encodeVal := getValEncoder(deep, 0, t.Elem(), MarshalDefault)
-	getIterator := zgo.NewPointerMapIteratorForType(t)
+	getIterator := zgo.NewMapIteratorFromRType(t)
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 		it, count := getIterator(unsafe.Add(value, offset))

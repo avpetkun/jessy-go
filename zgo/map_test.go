@@ -9,7 +9,7 @@ import (
 func TestMapIter(t *testing.T) {
 	m := map[string]int{"a": 1, "b": 2}
 
-	it, count := NewValueMapIterator(m)
+	it, count := NewMapIteratorFromValue(m)
 	if it == nil {
 		t.Fatal("map m is nil")
 	}
@@ -19,7 +19,7 @@ func TestMapIter(t *testing.T) {
 	}
 	it.Release()
 
-	getIterator := NewPointerMapIteratorForType(reflect.TypeOf(m))
+	getIterator := NewMapIteratorFromRType(reflect.TypeOf(m))
 	it, count = getIterator(unsafe.Pointer(&m))
 	if it == nil {
 		t.Fatal("map m is nil")

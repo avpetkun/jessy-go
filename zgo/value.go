@@ -10,45 +10,43 @@ import (
 func ifaceIndir(*Type) bool
 
 type Value struct {
-	typ     *Type
-	ptr     unsafe.Pointer
-	uintptr // flag
+	Type *Type
+	VPtr unsafe.Pointer
+	Flag uintptr // flag
 }
 
-func NewRValuerForRType(rt reflect.Type) func(ptr unsafe.Pointer) reflect.Value {
-	eface := UnpackEface(rt)
-	gt := (*Type)(eface.Value)
+func (v Value) Native() reflect.Value {
+	return *(*reflect.Value)(unsafe.Pointer(&v))
+}
 
-	flag := uintptr(rt.Kind())
-	if ifaceIndir(gt) {
+func NewValueFromRType(rType reflect.Type, valuePtr unsafe.Pointer) Value {
+	eface := UnpackEface(rType)
+	typ := (*Type)(eface.Value)
+	flag := uintptr(rType.Kind())
+	if ifaceIndir(typ) {
 		flag |= 1 << 7
 	}
+	return Value{typ, valuePtr, flag}
+}
 
-	return func(ptr unsafe.Pointer) reflect.Value {
-		val := Value{gt, ptr, flag}
-		return *(*reflect.Value)(unsafe.Pointer(&val))
+func NewRValueFromRType(rType reflect.Type, valuePtr unsafe.Pointer) reflect.Value {
+	return NewValueFromRType(rType, valuePtr).Native()
+}
+
+func NewRValuerFromRType(rType reflect.Type) func(ptr unsafe.Pointer) reflect.Value {
+	rVal := NewValueFromRType(rType, nil)
+	return func(valPtr unsafe.Pointer) reflect.Value {
+		val := rVal
+		val.VPtr = valPtr
+		return val.Native()
 	}
 }
 
-func NewAnyInterfacerFromRType(rt reflect.Type) func(valPtr unsafe.Pointer) any {
-	eface := UnpackEface(rt)
-	gt := (*Type)(eface.Value)
-
-	flag := uintptr(rt.Kind())
-	if ifaceIndir(gt) {
-		flag |= 1 << 7
-	}
-
-	var valType *Type
+func NewAnyInterfacerFromRType(rType reflect.Type) func(valPtr unsafe.Pointer) any {
+	i := NewRValueFromRType(rType, nil).Interface()
+	valType := (*EmptyInterface)(unsafe.Pointer(&i)).Type
 
 	return func(valPtr unsafe.Pointer) (i any) {
-		if valType == nil {
-			gVal := Value{gt, valPtr, flag}
-			rVal := (*reflect.Value)(unsafe.Pointer(&gVal))
-			i = rVal.Interface()
-			valType = (*EmptyInterface)(unsafe.Pointer(&i)).Type
-			return
-		}
 		eface := (*EmptyInterface)(unsafe.Pointer(&i))
 		eface.Type = valType
 		eface.Value = valPtr
@@ -56,25 +54,11 @@ func NewAnyInterfacerFromRType(rt reflect.Type) func(valPtr unsafe.Pointer) any 
 	}
 }
 
-func NewInterfacerFromRType[I any](rt reflect.Type) func(valPtr unsafe.Pointer) I {
-	eface := UnpackEface(rt)
-	gt := (*Type)(eface.Value)
-
-	flag := uintptr(rt.Kind())
-	if ifaceIndir(gt) {
-		flag |= 1 << 7
-	}
-
-	var valType *Type
+func NewInterfacerFromRType[I any](rType reflect.Type) func(valPtr unsafe.Pointer) I {
+	i := NewRValueFromRType(rType, nil).Interface().(I)
+	valType := (*EmptyInterface)(unsafe.Pointer(&i)).Type
 
 	return func(valPtr unsafe.Pointer) (i I) {
-		if valType == nil {
-			gVal := Value{gt, valPtr, flag}
-			rVal := (*reflect.Value)(unsafe.Pointer(&gVal))
-			i = rVal.Interface().(I)
-			valType = (*EmptyInterface)(unsafe.Pointer(&i)).Type
-			return
-		}
 		eface := (*EmptyInterface)(unsafe.Pointer(&i))
 		eface.Type = valType
 		eface.Value = valPtr

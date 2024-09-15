@@ -15,7 +15,7 @@ func mapIterInitPointer(t unsafe.Pointer, m *Map, it *MapIterator)
 //go:linkname mapIterNext runtime.mapiternext
 func mapIterNext(it *MapIterator)
 
-func NewValueMapIterator(value any) (it *MapIterator, count int) {
+func NewMapIteratorFromValue(value any) (it *MapIterator, count int) {
 	it = mapIteratorPool.Get().(*MapIterator)
 	eface := *(*EmptyInterface)(unsafe.Pointer(&value))
 	if eface.Type == nil || eface.Value == nil {
@@ -27,7 +27,7 @@ func NewValueMapIterator(value any) (it *MapIterator, count int) {
 	return
 }
 
-func NewPointerMapIteratorForType(rType reflect.Type) (getIterator func(valuePtr unsafe.Pointer) (it *MapIterator, count int)) {
+func NewMapIteratorFromRType(rType reflect.Type) (getIterator func(valuePtr unsafe.Pointer) (it *MapIterator, count int)) {
 	mapType := UnpackEface(rType).Value
 
 	return func(value unsafe.Pointer) (it *MapIterator, count int) {
