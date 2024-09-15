@@ -71,6 +71,9 @@ func Marshal(value any) (data []byte, err error) {
 
 func AppendMarshal(dst []byte, value any) (data []byte, err error) {
 	eface := zgo.UnpackEface(value)
+	if eface.Type == nil {
+		return append(dst, 'n', 'u', 'l', 'l'), nil
+	}
 	enc := getValHtmlTypeEncoder(eface.Type)
 	return enc(dst, eface.Value)
 }
@@ -81,6 +84,9 @@ func MarshalNoHTML(value any) (data []byte, err error) {
 
 func AppendMarshalNoHTML(dst []byte, value any) (data []byte, err error) {
 	eface := zgo.UnpackEface(value)
+	if eface.Type == nil {
+		return append(dst, 'n', 'u', 'l', 'l'), nil
+	}
 	enc := getValNoHtmlTypeEncoder(eface.Type)
 	return enc(dst, eface.Value)
 }
