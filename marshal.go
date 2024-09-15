@@ -71,7 +71,7 @@ func Marshal(value any) (data []byte, err error) {
 
 func AppendMarshal(dst []byte, value any) (data []byte, err error) {
 	eface := zgo.UnpackEface(value)
-	enc := getValTypeEncoder(eface.Type)
+	enc := getValHtmlTypeEncoder(eface.Type)
 	return enc(dst, eface.Value)
 }
 
@@ -81,25 +81,12 @@ func MarshalNoHTML(value any) (data []byte, err error) {
 
 func AppendMarshalNoHTML(dst []byte, value any) (data []byte, err error) {
 	eface := zgo.UnpackEface(value)
-	enc := getValHtmlTypeEncoder(eface.Type)
+	enc := getValNoHtmlTypeEncoder(eface.Type)
 	return enc(dst, eface.Value)
 }
 
-var encodersValCache sync.Map
 var encodersValHtmlCache sync.Map
-
-func getValTypeEncoder(typ *zgo.Type) UnsafeEncoder {
-	if val, ok := encodersValCache.Load(typ); ok {
-		return val.(UnsafeEncoder)
-	}
-	t := typ.Native()
-	if t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	enc := getValEncoder(0, 0, t, emptyFlags)
-	encodersValCache.Store(typ, enc)
-	return enc
-}
+var encodersValNoHtmlCache sync.Map
 
 func getValHtmlTypeEncoder(typ *zgo.Type) UnsafeEncoder {
 	if val, ok := encodersValHtmlCache.Load(typ); ok {
@@ -111,6 +98,19 @@ func getValHtmlTypeEncoder(typ *zgo.Type) UnsafeEncoder {
 	}
 	enc := getValEncoder(0, 0, t, EscapeHTML)
 	encodersValHtmlCache.Store(typ, enc)
+	return enc
+}
+
+func getValNoHtmlTypeEncoder(typ *zgo.Type) UnsafeEncoder {
+	if val, ok := encodersValNoHtmlCache.Load(typ); ok {
+		return val.(UnsafeEncoder)
+	}
+	t := typ.Native()
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	enc := getValEncoder(0, 0, t, emptyFlags)
+	encodersValNoHtmlCache.Store(typ, enc)
 	return enc
 }
 
@@ -192,7 +192,7 @@ func getValEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder
 		}
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			eface := (*zgo.EmptyInterface)(unsafe.Add(value, offset))
-			return getValTypeEncoder(eface.Type)(dst, eface.Value)
+			return getValNoHtmlTypeEncoder(eface.Type)(dst, eface.Value)
 		}
 	default:
 		return nopEncoder
