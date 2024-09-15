@@ -7,16 +7,18 @@ func AppendInt64(dst []byte, v int64) []byte {
 	// math.MaxUint64 = 18446744073709551615 (len 20)
 	i := 21 // + 1 sign
 	var out [21]byte
-	var r uint64
+	var u, r, q uint64
 	if v < 0 {
-		u := -uint64(v)
-		for ; u >= 100; u /= 100 {
-			r = u % 100 * 2
+		u = -uint64(v)
+		for u >= 100 {
+			q = u / 100
+			r = (u - q*100) << 1
 			i -= 2
 			out[i+1] = decNumTable[r+1]
 			out[i] = decNumTable[r]
+			u = q
 		}
-		r = u * 2
+		r = u << 1
 		i--
 		out[i] = decNumTable[r+1]
 		if u >= 10 {
@@ -26,14 +28,16 @@ func AppendInt64(dst []byte, v int64) []byte {
 		i--
 		out[i] = '-'
 	} else {
-		u := uint64(v)
-		for ; u >= 100; u /= 100 {
-			r = u % 100 * 2
+		u = uint64(v)
+		for u >= 100 {
+			q = u / 100
+			r = (u - q*100) << 1
 			i -= 2
 			out[i+1] = decNumTable[r+1]
 			out[i] = decNumTable[r]
+			u = q
 		}
-		r = u * 2
+		r = u << 1
 		i--
 		out[i] = decNumTable[r+1]
 		if u >= 10 {
@@ -51,15 +55,17 @@ func AppendUint64(dst []byte, v uint64) []byte {
 	// math.MaxUint64 = 18446744073709551615 (len 20)
 	i := 20
 	var out [20]byte
-	var r uint64
-	for ; v >= 100; v /= 100 {
-		r = v % 100 * 2
+	var r, q uint64
+	for v >= 100 {
+		q = v / 100
+		r = (v - q*100) << 1
 		i -= 2
 		out[i+1] = decNumTable[r+1]
 		out[i] = decNumTable[r]
+		v = q
 	}
 
-	r = v * 2
+	r = v << 1
 	i--
 	out[i] = decNumTable[r+1]
 	if v >= 10 {
