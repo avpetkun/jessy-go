@@ -21,6 +21,9 @@ func MakeSliceBytes(data unsafe.Pointer, size, cap uint) []byte {
 
 func Grow[S ~[]E, E any](s S, n int) S {
 	if n -= cap(s) - len(s); n > 0 {
+		if cap(s) == 0 {
+			return make(S, 0, n)
+		}
 		var e E
 		eType := UnpackEface(e).Type
 
@@ -35,6 +38,9 @@ func Grow[S ~[]E, E any](s S, n int) S {
 
 func GrowBytes(s []byte, n int) []byte {
 	if n -= cap(s) - len(s); n > 0 {
+		if cap(s) == 0 {
+			return make([]byte, 0, n)
+		}
 		a := (*Slice)(unsafe.Pointer(&s))
 		newCap := a.Cap + uint(n)
 		b := growSlice(a.Data, newCap, a.Cap, a.Len, byteType)
@@ -47,6 +53,9 @@ func GrowBytes(s []byte, n int) []byte {
 func GrowLen[S ~[]E, E any](s S, n int) S {
 	n += len(s)
 	if d := n - cap(s); d > 0 {
+		if cap(s) == 0 {
+			return make(S, n)
+		}
 		var e E
 		eType := UnpackEface(e).Type
 
@@ -64,6 +73,9 @@ func GrowLen[S ~[]E, E any](s S, n int) S {
 func GrowBytesLen[S ~[]E, E any](s S, n int) S {
 	n += len(s)
 	if d := n - cap(s); d > 0 {
+		if cap(s) == 0 {
+			return make(S, n)
+		}
 		a := (*Slice)(unsafe.Pointer(&s))
 		newCap := a.Cap + uint(d)
 		b := growSlice(a.Data, newCap, a.Cap, a.Len, byteType)
