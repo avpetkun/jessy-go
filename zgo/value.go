@@ -20,8 +20,7 @@ func (v Value) Native() reflect.Value {
 }
 
 func NewValueFromRType(rType reflect.Type, valuePtr unsafe.Pointer) Value {
-	eface := UnpackEface(rType)
-	typ := (*Type)(eface.Value)
+	typ := NewTypeFromRType(rType)
 	flag := uintptr(rType.Kind())
 	if ifaceIndir(typ) {
 		flag |= 1 << 7

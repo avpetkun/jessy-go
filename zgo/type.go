@@ -9,6 +9,8 @@ import (
 //go:noescape
 func toRType(*Type) reflect.Type
 
+var byteType = NewTypeFor[byte]()
+
 type Type struct {
 	Size       uintptr
 	PtrBytes   uintptr      // number of (prefix) bytes in the type that can contain pointers
@@ -30,4 +32,13 @@ type Type struct {
 
 func (gt *Type) Native() reflect.Type {
 	return toRType(gt)
+}
+
+func NewTypeFromRType(rt reflect.Type) *Type {
+	return (*Type)(UnpackEface(rt).Value)
+}
+
+func NewTypeFor[T any]() *Type {
+	var v T
+	return UnpackEface(v).Type
 }
