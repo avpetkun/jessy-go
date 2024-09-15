@@ -4,11 +4,11 @@ import "unsafe"
 
 type Slice struct {
 	Data unsafe.Pointer
-	Len  uintptr
-	Cap  uintptr
+	Len  uint
+	Cap  uint
 }
 
-func MakeSliceBytes(data unsafe.Pointer, size, cap uintptr) []byte {
+func MakeSliceBytes(data unsafe.Pointer, size, cap uint) []byte {
 	return *(*[]byte)(unsafe.Pointer(&Slice{
 		Data: data,
 		Len:  size,
