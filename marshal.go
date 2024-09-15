@@ -20,7 +20,7 @@ var (
 )
 
 // possible values: OmitEmpty, NeedQuotes, EscapeHTML
-type Flags int32
+type Flags uint32
 
 func (flags Flags) Has(flag Flags) bool {
 	return flags&flag != 0
@@ -336,12 +336,32 @@ func structEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].Key < fields[j].Key
 	})
-	isNotEmbedded := !flags.Has(embeddedFlag)
+	if flags.Has(embeddedFlag) {
+		return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
+			v = unsafe.Add(v, offset)
+			was := 0
+			for i := range fields {
+				if was != 0 {
+					dst = append(dst, ',')
+				}
+				dst = append(dst, fields[i].Key...)
+				dstLen := len(dst)
+				dst, err = fields[i].Encoder(dst, v)
+				if err != nil {
+					return dst, err
+				}
+				if len(dst) == dstLen {
+					dst = dst[:dstLen-fields[i].KeyLen-was]
+				} else {
+					was = 1
+				}
+			}
+			return dst, nil
+		}
+	}
 	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
 		v = unsafe.Add(v, offset)
-		if isNotEmbedded {
-			dst = append(dst, '{')
-		}
+		dst = append(dst, '{')
 		was := 0
 		for i := range fields {
 			if was != 0 {
@@ -359,9 +379,7 @@ func structEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder
 				was = 1
 			}
 		}
-		if isNotEmbedded {
-			dst = append(dst, '}')
-		}
+		dst = append(dst, '}')
 		return dst, nil
 	}
 }
