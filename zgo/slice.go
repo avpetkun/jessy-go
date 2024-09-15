@@ -70,11 +70,11 @@ func GrowLen[S ~[]E, E any](s S, n int) S {
 	return s[:n]
 }
 
-func GrowBytesLen[S ~[]E, E any](s S, n int) S {
+func GrowBytesLen(s []byte, n int) []byte {
 	n += len(s)
 	if d := n - cap(s); d > 0 {
 		if cap(s) == 0 {
-			return make(S, n)
+			return make([]byte, n)
 		}
 		a := (*Slice)(unsafe.Pointer(&s))
 		newCap := a.Cap + uint(d)
