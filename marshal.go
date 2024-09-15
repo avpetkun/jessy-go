@@ -470,7 +470,7 @@ func arrayEncoder(deep, offset uint, t reflect.Type, flags MarshalFlags) UnsafeE
 
 func arrayByteHexEncoder(offset uint, arrayLen uint, flags MarshalFlags) UnsafeEncoder {
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		data := zgo.MakeSliceBytes(unsafe.Add(v, offset), arrayLen, arrayLen)
+		data := zgo.NewSliceBytes(unsafe.Add(v, offset), arrayLen, arrayLen)
 		if flags&MarshalOmitEmpty != 0 {
 			var mask byte
 			for i := range data {

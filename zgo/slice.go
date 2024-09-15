@@ -11,7 +11,7 @@ type Slice struct {
 	Cap  uint
 }
 
-func MakeSliceBytes(data unsafe.Pointer, size, cap uint) []byte {
+func NewSliceBytes(data unsafe.Pointer, size, cap uint) []byte {
 	return *(*[]byte)(unsafe.Pointer(&Slice{
 		Data: data,
 		Len:  size,
