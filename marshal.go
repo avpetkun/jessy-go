@@ -347,7 +347,7 @@ func mapEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	if flags.Has(SortMapKeys) {
 		return mapEncoderSorted(deep, offset, t, flags)
 	}
-	return mapEncoderNotSorted(deep, offset, t, flags)
+	return mapEncoderUnsorted(deep, offset, t, flags)
 }
 
 var _ sort.Interface = (*mapSortBuf)(nil)
@@ -458,7 +458,7 @@ func mapEncoderSorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeEnco
 	}
 }
 
-func mapEncoderNotSorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
+func mapEncoderUnsorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
@@ -478,13 +478,12 @@ func mapEncoderNotSorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeE
 			it.Release()
 			return append(dst, '{', '}'), nil
 		}
-		var err error
+
 		dst = append(dst, '{')
-		was := 0
+		dstInitLen := len(dst)
+
+		var err error
 		for range count {
-			if was != 0 {
-				dst = append(dst, ',')
-			}
 			keyIndex := len(dst)
 			dst, err = encodeKey(dst, it.Key)
 			if err != nil {
@@ -492,7 +491,6 @@ func mapEncoderNotSorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeE
 				return dst, err
 			}
 			if len(dst) == keyIndex {
-				dst = dst[:keyIndex-was]
 				it.Next()
 				continue
 			}
@@ -504,16 +502,21 @@ func mapEncoderNotSorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeE
 				return dst, err
 			}
 			if len(dst) == valIndex {
-				dst = dst[:keyIndex-was]
+				dst = dst[:keyIndex]
 				it.Next()
 				continue
 			}
+			dst = append(dst, ',')
 
-			was = 1
 			it.Next()
 		}
 		it.Release()
-		dst = append(dst, '}')
+
+		if count = len(dst); count != dstInitLen {
+			dst[count-1] = '}'
+		} else {
+			dst = append(dst, '}')
+		}
 		return dst, nil
 	}
 }
