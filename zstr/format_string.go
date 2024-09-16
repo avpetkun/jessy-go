@@ -2,16 +2,15 @@ package zstr
 
 import (
 	"encoding/base64"
+	"slices"
 	"unicode/utf8"
-
-	"github.com/avpetkun/jessy-go/zgo"
 )
 
 func AppendBase64String(dst, data []byte) []byte {
 	size := base64.StdEncoding.EncodedLen(len(data)) + 2
 
 	i := len(dst)
-	dst = zgo.GrowBytesLen(dst, size)
+	dst = slices.Grow(dst, size)[:i+size]
 
 	dst[i] = '"'
 	base64.StdEncoding.Encode(dst[i+1:], data)
@@ -26,7 +25,7 @@ func AppendHexString(dst, data []byte) []byte {
 	size := len(data)*2 + 4
 
 	i := len(dst)
-	dst = zgo.GrowBytesLen(dst, size)
+	dst = slices.Grow(dst, size)[:i+size]
 
 	dst[i] = '"'
 	dst[i+1] = '0'
@@ -47,7 +46,7 @@ func AppendHex(dst, data []byte) []byte {
 	size := len(data)*2 + 2
 
 	i := len(dst)
-	dst = zgo.GrowBytesLen(dst, size)
+	dst = slices.Grow(dst, size)[:i+size]
 
 	dst[i] = '0'
 	dst[i+1] = 'x'
@@ -64,7 +63,7 @@ func AppendHex(dst, data []byte) []byte {
 
 // from encoding/json.AppendQuotedString
 func AppendQuotedString(dst, src []byte, escapeHtml bool) []byte {
-	dst = zgo.GrowBytes(dst, len(src)+2)
+	dst = slices.Grow(dst, len(src)+2)
 	dst = append(dst, '"')
 	start := 0
 	srcLen := len(src)
