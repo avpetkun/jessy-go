@@ -19,31 +19,6 @@ var (
 	customEncoders []customEncoder
 )
 
-// possible values: OmitEmpty, NeedQuotes, EscapeHTML
-type Flags uint32
-
-func (flags Flags) Has(flag Flags) bool {
-	return flags&flag != 0
-}
-
-func (flags Flags) excludes(flagsToExclude ...Flags) Flags {
-	for _, f := range flagsToExclude {
-		flags &^= f
-	}
-	return flags
-}
-
-const (
-	Fastest   Flags = 0
-	OmitEmpty Flags = 1 << (iota - 1)
-	NeedQuotes
-	EscapeHTML
-	embeddedFlag
-	flagsLen
-
-	Standard = NeedQuotes | EscapeHTML
-)
-
 type UnsafeEncoder func(dst []byte, value unsafe.Pointer) ([]byte, error)
 type ValueEncoder[T any] func(dst []byte, value T) ([]byte, error)
 
@@ -69,19 +44,19 @@ func AddValueEncoder[T any](encoder func(flags Flags) ValueEncoder[T]) {
 }
 
 func Marshal(value any) (data []byte, err error) {
-	return AppendMarshalFlags(nil, value, Standard)
+	return AppendMarshalFlags(nil, value, EncodeStandard)
 }
 
 func AppendMarshal(dst []byte, value any) (data []byte, err error) {
-	return AppendMarshalFlags(dst, value, Standard)
+	return AppendMarshalFlags(dst, value, EncodeStandard)
 }
 
 func MarshalFast(value any) (data []byte, err error) {
-	return AppendMarshalFlags(nil, value, Fastest)
+	return AppendMarshalFlags(nil, value, EncodeFastest)
 }
 
 func AppendMarshalFast(dst []byte, value any) (data []byte, err error) {
-	return AppendMarshalFlags(dst, value, Fastest)
+	return AppendMarshalFlags(dst, value, EncodeFastest)
 }
 
 func AppendMarshalFlags(dst []byte, value any, flags Flags) (data []byte, err error) {
@@ -93,7 +68,7 @@ func AppendMarshalFlags(dst []byte, value any, flags Flags) (data []byte, err er
 	return enc(dst, eface.Value)
 }
 
-var encodersValCache [flagsLen]sync.Map
+var encodersValCache [encodeFlagsLen]sync.Map
 
 func getValTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
 	if val, ok := encodersValCache[flags].Load(typ); ok {
@@ -103,17 +78,17 @@ func getValTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	enc := getValEncoder(0, 0, t, EscapeHTML)
+	enc := getValEncoder(0, 0, t, flags, false)
 	encodersValCache[flags].Store(typ, enc)
 	return enc
 }
 
-func getValEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
+func getValEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bool) UnsafeEncoder {
 	if deep++; deep == MarshalMaxDeep {
 		return nopEncoder
 	}
 	if t.Kind() == reflect.Pointer {
-		return pointerEncoder(deep, offset, t, flags)
+		return pointerEncoder(deep, offset, t, flags, inEmbedded)
 	}
 	for i := range customEncoders {
 		if customEncoders[i].Type == t {
@@ -123,7 +98,7 @@ func getValEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder
 			}
 		}
 	}
-	{
+	if !inEmbedded {
 		tp := reflect.PointerTo(t)
 		switch {
 		case t.Implements(typeAppendMarshaler):
@@ -142,7 +117,7 @@ func getValEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder
 	}
 	switch t.Kind() {
 	case reflect.Struct:
-		return structEncoder(deep, offset, t, flags)
+		return structEncoder(deep, offset, t, flags, inEmbedded)
 	case reflect.Map:
 		return mapEncoder(deep, offset, t, flags)
 	case reflect.Array:
@@ -187,7 +162,7 @@ func getValEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder
 	}
 }
 
-var encodersKeyCache [flagsLen]sync.Map
+var encodersKeyCache [encodeFlagsLen]sync.Map
 
 func getKeyTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
 	if val, ok := encodersKeyCache[flags].Load(typ); ok {
@@ -262,7 +237,7 @@ func nopEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
 	return dst, nil
 }
 
-func structEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
+func structEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bool) UnsafeEncoder {
 	type Field struct {
 		Key     string
 		KeyLen  int
@@ -290,21 +265,21 @@ func structEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder
 		if f.Anonymous {
 			fields = append(fields, Field{
 				KeyLen:  0,
-				Encoder: getValEncoder(deep, uint(f.Offset), f.Type, (fieldFlags | embeddedFlag)),
+				Encoder: getValEncoder(deep, uint(f.Offset), f.Type, fieldFlags, true),
 			})
 		} else if f.IsExported() {
 			key := `"` + name + `":`
 			fields = append(fields, Field{
 				Key:     key,
 				KeyLen:  len(key),
-				Encoder: getValEncoder(deep, uint(f.Offset), f.Type, fieldFlags.excludes(embeddedFlag)),
+				Encoder: getValEncoder(deep, uint(f.Offset), f.Type, fieldFlags, false),
 			})
 		}
 	}
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].Key < fields[j].Key
 	})
-	if flags.Has(embeddedFlag) {
+	if inEmbedded {
 		return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
 			v = unsafe.Add(v, offset)
 			was := 0
@@ -354,10 +329,10 @@ func structEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder
 
 func mapEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
-	flags = flags.excludes(OmitEmpty, embeddedFlag)
+	flags = flags.excludes(OmitEmpty)
 
 	encodeKey := getKeyEncoder(t.Key(), (flags | NeedQuotes))
-	encodeVal := getValEncoder(deep, 0, t.Elem(), flags)
+	encodeVal := getValEncoder(deep, 0, t.Elem(), flags, false)
 	getIterator := zgo.NewMapIteratorFromRType(t)
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
@@ -421,11 +396,11 @@ func keyPointerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	}
 }
 
-func pointerEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
+func pointerEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bool) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
-	elemEncoder := getValEncoder(deep, 0, t.Elem(), flags)
+	elemEncoder := getValEncoder(deep, 0, t.Elem(), flags, inEmbedded)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = *(*unsafe.Pointer)(unsafe.Add(v, offset))
 		if v == nil {
@@ -441,6 +416,7 @@ func pointerEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncode
 func stringEncoder(offset uint, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	escapeHTML := flags.Has(EscapeHTML)
+	needValidate := flags.Has(ValidateString) || escapeHTML
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		h := (*zgo.String)(unsafe.Add(v, offset))
 		if h.Len == 0 {
@@ -450,7 +426,12 @@ func stringEncoder(offset uint, flags Flags) UnsafeEncoder {
 			return append(dst, '"', '"'), nil
 		}
 		data := unsafe.Slice(h.Data, h.Len)
-		dst = zstr.AppendQuotedString(dst, data, escapeHTML)
+		if needValidate {
+			return zstr.AppendQuotedString(dst, data, escapeHTML), nil
+		}
+		dst = append(dst, '"')
+		dst = append(dst, data...)
+		dst = append(dst, '"')
 		return dst, nil
 	}
 }
@@ -462,10 +443,10 @@ func sliceEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder 
 	}
 
 	omitEmpty := flags.Has(OmitEmpty)
-	flags = flags.excludes(OmitEmpty, embeddedFlag)
+	flags = flags.excludes(OmitEmpty)
 
 	elemSize := uint(elem.Size())
-	elemEncoder := getValEncoder(deep, 0, elem, flags)
+	elemEncoder := getValEncoder(deep, 0, elem, flags, false)
 
 	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
 		h := (*zgo.Slice)(unsafe.Add(v, offset))
@@ -511,10 +492,10 @@ func arrayEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder 
 		return arrayByteHexEncoder(offset, arrayLen, flags)
 	}
 
-	flags = flags.excludes(OmitEmpty, embeddedFlag)
+	flags = flags.excludes(OmitEmpty)
 
 	elemSize := uint(elem.Size())
-	elemEncoder := getValEncoder(deep, 0, elem, flags)
+	elemEncoder := getValEncoder(deep, 0, elem, flags, false)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
 		var err error
@@ -791,6 +772,8 @@ func marshalerEncoder(offset uint, t reflect.Type) UnsafeEncoder {
 
 func textMarshalerEncoder(offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	escapeHTML := flags.Has(EscapeHTML)
+	needValidate := flags.Has(ValidateTextMarshaller) || escapeHTML
+
 	getInterface := zgo.NewInterfacerFromRType[TextMarshaler](t)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
@@ -798,6 +781,12 @@ func textMarshalerEncoder(offset uint, t reflect.Type, flags Flags) UnsafeEncode
 		if err != nil {
 			return dst, nil
 		}
-		return zstr.AppendQuotedString(dst, data, escapeHTML), nil
+		if needValidate {
+			return zstr.AppendQuotedString(dst, data, escapeHTML), nil
+		}
+		dst = append(dst, '"')
+		dst = append(dst, data...)
+		dst = append(dst, '"')
+		return dst, nil
 	}
 }
