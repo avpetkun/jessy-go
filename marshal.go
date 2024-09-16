@@ -1,8 +1,10 @@
 package jessy
 
 import (
+	"bytes"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -342,6 +344,121 @@ func structEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bo
 }
 
 func mapEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
+	if flags.Has(SortMapKeys) {
+		return mapEncoderSorted(deep, offset, t, flags)
+	}
+	return mapEncoderNotSorted(deep, offset, t, flags)
+}
+
+var _ sort.Interface = (*mapSortBuf)(nil)
+
+type mapSortBuf struct {
+	Pos [][]byte
+	Buf bytes.Buffer
+}
+
+func (p *mapSortBuf) Len() int {
+	return len(p.Pos)
+}
+func (p *mapSortBuf) Less(i, j int) bool {
+	return bytes.Compare(p.Pos[i], p.Pos[j]) == -1
+}
+func (p *mapSortBuf) Swap(i, j int) {
+	p.Pos[i], p.Pos[j] = p.Pos[j], p.Pos[i]
+}
+
+func mapEncoderSorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
+	omitEmpty := flags.Has(OmitEmpty)
+	flags = flags.excludes(OmitEmpty)
+
+	encodeKey := getKeyEncoder(t.Key(), (flags | NeedQuotes))
+	encodeVal := getValueEncoder(deep, 0, t.Elem(), flags)
+	getIterator := zgo.NewMapIteratorFromRType(t)
+
+	bufPool := sync.Pool{New: func() any { return new(mapSortBuf) }}
+
+	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		it, count := getIterator(unsafe.Add(value, offset))
+		if it == nil {
+			if omitEmpty {
+				return dst, nil
+			}
+			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
+		if count == 0 {
+			it.Release()
+			return append(dst, '{', '}'), nil
+		}
+
+		dst = append(dst, '{')
+		dstInitLen := len(dst)
+
+		buf := bufPool.Get().(*mapSortBuf)
+		buf.Pos = slices.Grow(buf.Pos, count)
+
+		var err error
+		for range count {
+			keyIndex := len(dst)
+			dst, err = encodeKey(dst, it.Key)
+			if err != nil {
+				it.Release()
+				buf.Pos = buf.Pos[:0]
+				bufPool.Put(buf)
+				return dst, err
+			}
+			if len(dst) == keyIndex {
+				dst = dst[:keyIndex]
+				it.Next()
+				continue
+			}
+			dst = append(dst, ':')
+			valIndex := len(dst)
+			dst, err = encodeVal(dst, it.Elem)
+			if err != nil {
+				it.Release()
+				buf.Pos = buf.Pos[:0]
+				bufPool.Put(buf)
+				return dst, err
+			}
+			if len(dst) == valIndex {
+				dst = dst[:keyIndex]
+				it.Next()
+				continue
+			}
+			dst = append(dst, ',')
+
+			buf.Pos = append(buf.Pos, dst[keyIndex:])
+			it.Next()
+		}
+		it.Release()
+
+		dstNewLen := len(dst)
+		mapSize := dstNewLen - dstInitLen
+		if mapSize == 0 {
+			dst = append(dst, '}')
+		} else {
+			sort.Sort(buf)
+
+			buf.Buf.Grow(mapSize)
+			for i := range buf.Pos {
+				buf.Buf.Write(buf.Pos[i])
+				buf.Pos[i] = nil
+			}
+			buf.Pos = buf.Pos[:0]
+
+			copy(dst[dstInitLen:], buf.Buf.Bytes())
+			buf.Buf.Reset()
+
+			dst[dstNewLen-1] = '}'
+		}
+
+		bufPool.Put(buf)
+
+		return dst, nil
+	}
+}
+
+func mapEncoderNotSorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
@@ -368,25 +485,27 @@ func mapEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 			if was != 0 {
 				dst = append(dst, ',')
 			}
-			dstLen0 := len(dst)
+			keyIndex := len(dst)
 			dst, err = encodeKey(dst, it.Key)
 			if err != nil {
 				it.Release()
 				return dst, err
 			}
-			if len(dst) == dstLen0 {
-				dst = dst[:dstLen0-was]
+			if len(dst) == keyIndex {
+				dst = dst[:keyIndex-was]
+				it.Next()
 				continue
 			}
 			dst = append(dst, ':')
-			dstLen1 := len(dst)
+			valIndex := len(dst)
 			dst, err = encodeVal(dst, it.Elem)
 			if err != nil {
 				it.Release()
 				return dst, err
 			}
-			if len(dst) == dstLen1 {
-				dst = dst[:dstLen0-was]
+			if len(dst) == valIndex {
+				dst = dst[:keyIndex-was]
+				it.Next()
 				continue
 			}
 
