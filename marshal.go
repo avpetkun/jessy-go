@@ -64,31 +64,31 @@ func AppendMarshalFlags(dst []byte, value any, flags Flags) (data []byte, err er
 	if eface.Type == nil {
 		return append(dst, 'n', 'u', 'l', 'l'), nil
 	}
-	enc := getValTypeEncoder(eface.Type, flags)
+	enc := getValueTypeEncoder(eface.Type, flags)
 	return enc(dst, eface.Value)
 }
 
-var encodersValCache [encodeFlagsLen]sync.Map
+var encodersTypesCache [encodeFlagsLen]sync.Map
 
-func getValTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
-	if val, ok := encodersValCache[flags].Load(typ); ok {
+func getValueTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
+	if val, ok := encodersTypesCache[flags].Load(typ); ok {
 		return val.(UnsafeEncoder)
 	}
 	t := typ.Native()
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	enc := getValEncoder(0, 0, t, flags, false)
-	encodersValCache[flags].Store(typ, enc)
+	enc := getValueEncoder(0, 0, t, flags)
+	encodersTypesCache[flags].Store(typ, enc)
 	return enc
 }
 
-func getValEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bool) UnsafeEncoder {
+func getValueEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	if deep++; deep == MarshalMaxDeep {
 		return nopEncoder
 	}
 	if t.Kind() == reflect.Pointer {
-		return pointerEncoder(deep, offset, t, flags, inEmbedded)
+		return pointerEncoder(deep, offset, t, flags)
 	}
 	for i := range customEncoders {
 		if customEncoders[i].Type == t {
@@ -98,7 +98,7 @@ func getValEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bo
 			}
 		}
 	}
-	if !inEmbedded {
+	{
 		tp := reflect.PointerTo(t)
 		switch {
 		case t.Implements(typeAppendMarshaler):
@@ -117,7 +117,7 @@ func getValEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bo
 	}
 	switch t.Kind() {
 	case reflect.Struct:
-		return structEncoder(deep, offset, t, flags, inEmbedded)
+		return structEncoder(deep, offset, t, flags, false)
 	case reflect.Map:
 		return mapEncoder(deep, offset, t, flags)
 	case reflect.Array:
@@ -155,8 +155,22 @@ func getValEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bo
 	case reflect.Interface:
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			eface := (*zgo.EmptyInterface)(unsafe.Add(value, offset))
-			return getValTypeEncoder(eface.Type, flags)(dst, eface.Value)
+			return getValueTypeEncoder(eface.Type, flags)(dst, eface.Value)
 		}
+	default:
+		return nopEncoder
+	}
+}
+
+func getEmbeddedStructEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
+	if deep++; deep == MarshalMaxDeep {
+		return nopEncoder
+	}
+	switch t.Kind() {
+	case reflect.Pointer:
+		return embeddedPointerEncoder(deep, offset, t, flags)
+	case reflect.Struct:
+		return structEncoder(deep, offset, t, flags, true)
 	default:
 		return nopEncoder
 	}
@@ -265,14 +279,14 @@ func structEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bo
 		if f.Anonymous {
 			fields = append(fields, Field{
 				KeyLen:  0,
-				Encoder: getValEncoder(deep, uint(f.Offset), f.Type, fieldFlags, true),
+				Encoder: getEmbeddedStructEncoder(deep, uint(f.Offset), f.Type, fieldFlags),
 			})
 		} else if f.IsExported() {
 			key := `"` + name + `":`
 			fields = append(fields, Field{
 				Key:     key,
 				KeyLen:  len(key),
-				Encoder: getValEncoder(deep, uint(f.Offset), f.Type, fieldFlags, false),
+				Encoder: getValueEncoder(deep, uint(f.Offset), f.Type, fieldFlags),
 			})
 		}
 	}
@@ -332,7 +346,7 @@ func mapEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	flags = flags.excludes(OmitEmpty)
 
 	encodeKey := getKeyEncoder(t.Key(), (flags | NeedQuotes))
-	encodeVal := getValEncoder(deep, 0, t.Elem(), flags, false)
+	encodeVal := getValueEncoder(deep, 0, t.Elem(), flags)
 	getIterator := zgo.NewMapIteratorFromRType(t)
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
@@ -396,11 +410,11 @@ func keyPointerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	}
 }
 
-func pointerEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bool) UnsafeEncoder {
+func pointerEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
-	elemEncoder := getValEncoder(deep, 0, t.Elem(), flags, inEmbedded)
+	elemEncoder := getValueEncoder(deep, 0, t.Elem(), flags)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = *(*unsafe.Pointer)(unsafe.Add(v, offset))
 		if v == nil {
@@ -408,6 +422,17 @@ func pointerEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded b
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
+		return elemEncoder(dst, v)
+	}
+}
+
+func embeddedPointerEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
+	elemEncoder := getEmbeddedStructEncoder(deep, 0, t.Elem(), flags)
+	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		v = *(*unsafe.Pointer)(unsafe.Add(v, offset))
+		if v == nil {
+			return dst, nil
 		}
 		return elemEncoder(dst, v)
 	}
@@ -446,7 +471,7 @@ func sliceEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder 
 	flags = flags.excludes(OmitEmpty)
 
 	elemSize := uint(elem.Size())
-	elemEncoder := getValEncoder(deep, 0, elem, flags, false)
+	elemEncoder := getValueEncoder(deep, 0, elem, flags)
 
 	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
 		h := (*zgo.Slice)(unsafe.Add(v, offset))
@@ -495,7 +520,7 @@ func arrayEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder 
 	flags = flags.excludes(OmitEmpty)
 
 	elemSize := uint(elem.Size())
-	elemEncoder := getValEncoder(deep, 0, elem, flags, false)
+	elemEncoder := getValueEncoder(deep, 0, elem, flags)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
 		var err error
