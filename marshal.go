@@ -86,9 +86,6 @@ func getValueTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
 }
 
 func getValueEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
-	if deep++; deep == MarshalMaxDeep {
-		return nopEncoder
-	}
 	if t.Kind() == reflect.Pointer {
 		return pointerEncoder(deep, offset, t, flags)
 	}
@@ -165,9 +162,6 @@ func getValueEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncod
 }
 
 func getEmbeddedStructEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
-	if deep++; deep == MarshalMaxDeep {
-		return nopEncoder
-	}
 	switch t.Kind() {
 	case reflect.Pointer:
 		return embeddedPointerEncoder(deep, offset, t, flags)
@@ -254,6 +248,9 @@ func nopEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
 }
 
 func structEncoder(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bool) UnsafeEncoder {
+	if deep++; deep >= MarshalMaxDeep {
+		return nopEncoder
+	}
 	type Field struct {
 		Key     string
 		KeyLen  int
