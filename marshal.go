@@ -417,6 +417,12 @@ func mapEncoderSorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeEnco
 	bufPool := sync.Pool{New: func() any { return new(mapSortBuf) }}
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		if value == nil {
+			if omitEmpty {
+				return dst, nil
+			}
+			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
 		it, count := getIterator(unsafe.Add(value, offset))
 		if it == nil {
 			if omitEmpty {
