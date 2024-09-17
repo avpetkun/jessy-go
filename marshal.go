@@ -920,6 +920,9 @@ func boolEncoder(offset uint, flags Flags) UnsafeEncoder {
 
 func appendMarshalerEncoder(offset uint, t reflect.Type) UnsafeEncoder {
 	getInterface := zgo.NewInterfacerFromRType[AppendMarshaler](t)
+	if getInterface == nil {
+		return nopEncoder
+	}
 	return func(dst []byte, v unsafe.Pointer) (newDst []byte, err error) {
 		v = unsafe.Add(v, offset)
 		newDst, err = getInterface(v).AppendMarshalJSON(dst)
@@ -932,6 +935,9 @@ func appendMarshalerEncoder(offset uint, t reflect.Type) UnsafeEncoder {
 
 func marshalerEncoder(offset uint, t reflect.Type) UnsafeEncoder {
 	getInterface := zgo.NewInterfacerFromRType[Marshaler](t)
+	if getInterface == nil {
+		return nopEncoder
+	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
 		data, err := getInterface(v).MarshalJSON()
@@ -947,6 +953,10 @@ func textMarshalerEncoder(offset uint, t reflect.Type, flags Flags) UnsafeEncode
 	needValidate := flags.Has(ValidateTextMarshaller) || escapeHTML
 
 	getInterface := zgo.NewInterfacerFromRType[TextMarshaler](t)
+	if getInterface == nil {
+		return nopEncoder
+	}
+
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = unsafe.Add(v, offset)
 		data, err := getInterface(v).MarshalText()
