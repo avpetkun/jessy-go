@@ -412,7 +412,8 @@ func mapEncoderSorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeEnco
 
 	encodeKey := getKeyEncoder(t.Key(), (flags | NeedQuotes))
 	encodeVal := getValueEncoder(deep, 0, t.Elem(), flags)
-	getIterator := zgo.NewMapIteratorFromRType(t)
+	isDirect := deep == 0
+	getIterator := zgo.NewMapIteratorFromRType(t, isDirect)
 
 	bufPool := sync.Pool{New: func() any { return new(mapSortBuf) }}
 
@@ -509,7 +510,8 @@ func mapEncoderUnsorted(deep, offset uint, t reflect.Type, flags Flags) UnsafeEn
 
 	encodeKey := getKeyEncoder(t.Key(), (flags | NeedQuotes))
 	encodeVal := getValueEncoder(deep, 0, t.Elem(), flags)
-	getIterator := zgo.NewMapIteratorFromRType(t)
+	isDirect := deep == 0
+	getIterator := zgo.NewMapIteratorFromRType(t, isDirect)
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 		it, count := getIterator(unsafe.Add(value, offset))
