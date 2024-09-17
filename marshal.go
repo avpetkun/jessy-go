@@ -72,15 +72,17 @@ func AppendMarshalFlags(dst []byte, value any, flags Flags) (data []byte, err er
 
 var encodersTypesCache [encodeFlagsLen]sync.Map
 
-func getValueTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
+func getValueTypeEncoder(typ *zgo.Type, flags Flags) (enc UnsafeEncoder) {
 	if val, ok := encodersTypesCache[flags].Load(typ); ok {
 		return val.(UnsafeEncoder)
 	}
 	t := typ.Native()
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
+		enc = getValueEncoder(1, 0, t, flags)
+	} else {
+		enc = getValueEncoder(0, 0, t, flags)
 	}
-	enc := getValueEncoder(0, 0, t, flags)
 	encodersTypesCache[flags].Store(typ, enc)
 	return enc
 }

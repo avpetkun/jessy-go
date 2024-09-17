@@ -274,6 +274,12 @@ func getTestStruct() Struct {
 var expectedMarshalResult = `{"embed_v_ptr":789,"EmbedVpub":123,"EmbedVpriv":3145,"AnyVal1":123,"AnyVal2":"abc","AnyValPtr":123,"AppendMarshalVal":"AppendMarshalVal","Bool1":true,"Bool1Ptr":true,"Bool2":false,"Bool2Ptr":true,"Byte":12,"ByteArr":"custom:0x01020300000000000000","ByteArr5":"0x0102030405","BytePtr":1,"ByteSlice":"aGVsbG8h","DoubleIntPtr":1,"DoubleStrSlicePtr":["a","b","c"],"Float32":16.17,"Float32Ptr":16.17,"Float64":17.18,"Float64Ptr":17.18,"Int":123,"Int16":567,"Int16Ptr":1,"Int32":789,"Int32Ptr":1,"Int64":-91011,"Int64Ptr":1,"Int8":35,"Int8Ptr":1,"IntArr2":[1,2],"IntArr3":[1,2,3],"IntArr3Ptr":[1,2,3],"IntPtr":1,"JMarshalPtrEmpty":null,"JMarshalPtrPtr":"JMarshalPtrPtr","JMarshalPtrVal":"JMarshalPtrVal","JMarshalValPtr":"JMarshalValPtr","JMarshalValVal":"JMarshalValVal","MapAnyAny":{"1":"a","b":2},"MapAnyVal":{"1":2,"3":4},"MapEmpty":{},"MapValAny":{"1":2,"2":"b"},"MapValVal":{"a":1,"b":2},"MapValValPtr":{"a":1,"b":2},"MarshalMapKey":{"a":"a1","b":"b1","c":"c1","de":"de1","fgk":"fgk1"},"MarshalMapKeyPtr":{"a":"a1","b":"b1","c":"c1","de":"de1","fgk":"fgk1"},"Nested1":{"nested_u":435345,"nested_v":2},"Nested2":{"nested_u_priv":78634},"NestedPtr1":{"nested_u":986754,"nested_v":3},"NestedPtr2":{"nested_u":986755,"nested_v":33},"NestedPtrNil":null,"NilMap":null,"String":"test_string","StringPtr":"test_string","TMarhalVal":"TMarhalVal","Uint16":1314,"Uint16Ptr":1,"Uint32":1415,"Uint32Ptr":1,"Uint64":1516,"Uint64Ptr":1,"Uint8":13,"Uint8Ptr":1,"strSlice":["a","b","c"],"strSlicePtr":["a","b","c"]}`
 
 func TestMarshal(t *testing.T) {
+	_, err := Marshal(&map[any]string{123: "M"})
+	require.NoError(t, err)
+
+	_, err = Marshal(&map[string]any{"M": json.RawMessage(nil)})
+	require.NoError(t, err)
+
 	data, err := Marshal(map[string]int{
 		"x:y": 1,
 		"y:x": 2,
