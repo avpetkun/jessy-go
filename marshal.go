@@ -172,6 +172,45 @@ func getEmbeddedStructEncoder(deep, offset uint, t reflect.Type, flags Flags) Un
 	}
 }
 
+func pointerEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
+	omitEmpty := flags.Has(OmitEmpty)
+	flags = flags.excludes(OmitEmpty)
+
+	t = t.Elem()
+	tUnderlying := t
+	for tUnderlying.Kind() == reflect.Pointer {
+		tUnderlying = tUnderlying.Elem()
+	}
+
+	switch tUnderlying.Kind() {
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		elemEncoder := getValueEncoder(deep, 0, tUnderlying, flags)
+		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+			if v == nil {
+				if omitEmpty {
+					return dst, nil
+				}
+				return append(dst, 'n', 'u', 'l', 'l'), nil
+			}
+			return elemEncoder(dst, v)
+		}
+	default:
+		elemEncoder := getValueEncoder(deep, 0, t, flags)
+		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+			v = *(*unsafe.Pointer)(unsafe.Add(v, offset))
+			if v == nil {
+				if omitEmpty {
+					return dst, nil
+				}
+				return append(dst, 'n', 'u', 'l', 'l'), nil
+			}
+			return elemEncoder(dst, v)
+		}
+	}
+}
+
 var encodersKeyCache [encodeFlagsLen]sync.Map
 
 func getKeyTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
@@ -523,23 +562,6 @@ func keyPointerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = *(*unsafe.Pointer)(v)
 		if v == nil {
-			return append(dst, 'n', 'u', 'l', 'l'), nil
-		}
-		return elemEncoder(dst, v)
-	}
-}
-
-func pointerEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
-	omitEmpty := flags.Has(OmitEmpty)
-	flags = flags.excludes(OmitEmpty)
-
-	elemEncoder := getValueEncoder(deep, 0, t.Elem(), flags)
-	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		v = *(*unsafe.Pointer)(unsafe.Add(v, offset))
-		if v == nil {
-			if omitEmpty {
-				return dst, nil
-			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
 		}
 		return elemEncoder(dst, v)
