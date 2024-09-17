@@ -154,6 +154,9 @@ func getValueEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncod
 	case reflect.Interface:
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			eface := (*zgo.EmptyInterface)(unsafe.Add(value, offset))
+			if eface.Value == nil {
+				return append(dst, 'n', 'u', 'l', 'l'), nil
+			}
 			return getValueTypeEncoder(eface.Type, flags)(dst, eface.Value)
 		}
 	default:
