@@ -574,6 +574,9 @@ func keyPointerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 func embeddedPointerEncoder(deep, offset uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	elemEncoder := getEmbeddedStructEncoder(deep, 0, t.Elem(), flags)
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		if v == nil {
+			return dst, nil
+		}
 		v = *(*unsafe.Pointer)(unsafe.Add(v, offset))
 		if v == nil {
 			return dst, nil

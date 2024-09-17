@@ -280,6 +280,14 @@ func TestMarshal(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "[null,null]", string(data))
 
+	Marshal(func() any {
+		type (
+			S2 struct{ Field string }
+			S  struct{ *S2 }
+		)
+		return S{}
+	}())
+
 	v := getTestStruct()
 
 	AddValueEncoder(func(flags Flags) ValueEncoder[[10]byte] {
