@@ -27,23 +27,9 @@ func NewMapIteratorFromValue(value any) (it *MapIterator, count int) {
 	return
 }
 
-func NewMapIteratorFromRType(rType reflect.Type, isDirectValue bool) (getIterator func(valuePtr unsafe.Pointer) (it *MapIterator, count int)) {
+func NewMapIteratorFromRType(rType reflect.Type) (getIterator func(valuePtr unsafe.Pointer) (it *MapIterator, count int)) {
 	mapType := UnpackEface(rType).Value
-
-	if isDirectValue {
-		return func(value unsafe.Pointer) (it *MapIterator, count int) {
-			if value == nil {
-				return
-			}
-			hmap := (*Map)(value)
-			it = mapIteratorPool.Get().(*MapIterator)
-			mapIterInitPointer(mapType, hmap, it)
-			count = hmap.Count
-			return
-		}
-	}
 	return func(value unsafe.Pointer) (it *MapIterator, count int) {
-		value = *(*unsafe.Pointer)(value)
 		if value == nil {
 			return
 		}

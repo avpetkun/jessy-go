@@ -19,8 +19,8 @@ func TestMapIter(t *testing.T) {
 	}
 	it.Release()
 
-	getIterator := NewMapIteratorFromRType(reflect.TypeOf(m), false)
-	it, count = getIterator(unsafe.Pointer(&m))
+	getIterator := NewMapIteratorFromRType(reflect.TypeOf(m))
+	it, count = getIterator(*(*unsafe.Pointer)(unsafe.Pointer(&m)))
 	if it == nil {
 		t.Fatal("map m is nil")
 	}
