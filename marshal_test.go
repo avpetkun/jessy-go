@@ -317,8 +317,7 @@ func TestMarshalAll(t *testing.T) {
 		println("str", "M", str.M)
 		data, err := Marshal(str)
 		require.NoError(t, err)
-		expectedData, _ := json.Marshal(str)
-		require.Equal(t, string(expectedData), string(data))
+		require.Equal(t, `{"M":"123","X":123}`, string(data))
 		println("------")
 	}
 	{
@@ -330,8 +329,7 @@ func TestMarshalAll(t *testing.T) {
 		println("str", "M", str.M)
 		data, err := Marshal(str)
 		require.NoError(t, err)
-		expectedData, _ := json.Marshal(str)
-		require.Equal(t, string(expectedData), string(data))
+		require.Equal(t, `{"M":"123","X":123}`, string(data))
 		println("------")
 	}
 	{
@@ -384,8 +382,29 @@ func TestMarshalAll(t *testing.T) {
 
 	data, err := Marshal(struct{ M *json.RawMessage }{})
 	require.NoError(t, err)
-	//require.Equal(t, `{"M":null}`, string(data))
+	// TODO: require.Equal(t, `{"M":null}`, string(data))
 	require.Equal(t, `null`, string(data))
+	println("------")
+
+	data, err = Marshal(json.RawMessage("123"))
+	require.NoError(t, err)
+	require.Equal(t, `123`, string(data))
+	println("------")
+
+	jsonMsg := json.RawMessage("123")
+	data, err = Marshal(&jsonMsg)
+	require.NoError(t, err)
+	require.Equal(t, `123`, string(data))
+	println("------")
+
+	data, err = Marshal(123)
+	require.NoError(t, err)
+	require.Equal(t, `123`, string(data))
+	println("------")
+
+	data, err = Marshal("123")
+	require.NoError(t, err)
+	require.Equal(t, `"123"`, string(data))
 	println("------")
 
 	type Str struct {

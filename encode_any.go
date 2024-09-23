@@ -2,6 +2,8 @@ package jessy
 
 import (
 	"reflect"
+	"sort"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -163,133 +165,102 @@ func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPoin
 }
 
 func structEncoder(deep uint, flags Flags, t reflect.Type, byPointer bool) UnsafeEncoder {
-	wasStruct := true
 	fieldsCount := t.NumField()
 	if fieldsCount == 0 {
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			return append(dst, '{', '}'), nil
 		}
 	}
-	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
-		dst = append(dst, '{')
-		for i := range fieldsCount {
-			f := t.Field(i)
-			ft := f.Type
-			doUnpack := false
-			if fieldsCount == 1 {
-				if ft.Kind() == reflect.Pointer {
-					ft = ft.Elem()
-					doUnpack = byPointer
-				}
-				byPointer = false
-			} else {
-				byPointer = ft.Kind() == reflect.Struct
-				if !byPointer && ft.Kind() == reflect.Pointer && ft.Elem().Kind() == reflect.Struct {
-					doUnpack = true
-				}
-			}
-			fValue := unsafe.Add(value, f.Offset)
-
-			if i != 0 {
-				dst = append(dst, ',')
-			}
-			dst = append(dst, '"')
-			dst = append(dst, f.Name...)
-			dst = append(dst, '"', ':')
-
-			var enc UnsafeEncoder
-			if doUnpack {
-				enc = pointerEncoder(deep, flags, ft, wasStruct, byPointer)
-			} else {
-				enc = createTypeEncoder(deep, flags, ft, wasStruct, byPointer)
-			}
-
-			dst, _ = enc(dst, fValue)
-		}
-		dst = append(dst, '}')
-		return dst, nil
-	}
-}
-
-/*func structEncoderOld(deep, offset uint, t reflect.Type, flags Flags, inEmbedded bool) UnsafeEncoder {
-	if deep++; deep >= MarshalMaxDeep {
-		return nopEncoder
-	}
 	type Field struct {
 		Key     string
 		KeyLen  int
+		Offset  uintptr
 		Encoder UnsafeEncoder
 	}
-	fields := []Field{}
-	for i := range t.NumField() {
+
+	fields := make([]Field, 0, fieldsCount)
+	for i := range fieldsCount {
 		f := t.Field(i)
 
-		name := f.Tag.Get("json")
-		action := ""
-		if j := strings.IndexByte(name, ','); j != -1 {
-			action = name[j+1:]
-			name = name[:j]
+		if !f.Anonymous && !f.IsExported() {
+			continue
 		}
+
+		parts := strings.Split(f.Tag.Get("json"), ",")
+		name := parts[0]
 		if name == "-" {
 			continue
-		} else if name == "" {
+		}
+		if name == "" {
 			name = f.Name
 		}
+
 		fieldFlags := flags
-		if action == "omitempty" {
-			fieldFlags |= OmitEmpty
+		for _, action := range parts[1:] {
+			switch action {
+			case "omitempty":
+				fieldFlags |= OmitEmpty
+			case "string":
+				fieldFlags |= NeedQuotes
+			}
 		}
+
+		ft := f.Type
+
+		makeUnpack := false
+		if fieldsCount == 1 {
+			if ft.Kind() == reflect.Pointer {
+				ft = ft.Elem()
+				makeUnpack = byPointer
+			}
+			byPointer = false
+		} else {
+			byPointer = ft.Kind() == reflect.Struct
+			if !byPointer && ft.Kind() == reflect.Pointer && ft.Elem().Kind() == reflect.Struct {
+				makeUnpack = true
+			}
+		}
+
+		const wasStruct = true
+		var fieldEncoder UnsafeEncoder
+		if makeUnpack {
+			fieldEncoder = pointerEncoder(deep, flags, ft, wasStruct, byPointer)
+		} else {
+			fieldEncoder = createTypeEncoder(deep, flags, ft, wasStruct, byPointer)
+		}
+
 		if f.Anonymous {
 			fields = append(fields, Field{
 				KeyLen:  0,
-				Encoder: getEmbeddedStructEncoder(deep, uint(f.Offset), f.Type, fieldFlags),
+				Offset:  f.Offset,
+				Encoder: fieldEncoder,
 			})
-		} else if f.IsExported() {
+		} else {
 			key := `"` + name + `":`
 			fields = append(fields, Field{
 				Key:     key,
 				KeyLen:  len(key),
-				Encoder: getValueEncoder(deep, uint(f.Offset), f.Type, fieldFlags),
+				Offset:  f.Offset,
+				Encoder: fieldEncoder,
 			})
 		}
 	}
+
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].Key < fields[j].Key
 	})
-	if inEmbedded {
-		return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
-			v = unsafe.Add(v, offset)
-			was := 0
-			for i := range fields {
-				if was != 0 {
-					dst = append(dst, ',')
-				}
-				dst = append(dst, fields[i].Key...)
-				dstLen := len(dst)
-				dst, err = fields[i].Encoder(dst, v)
-				if err != nil {
-					return dst, err
-				}
-				if len(dst) == dstLen {
-					dst = dst[:dstLen-fields[i].KeyLen-was]
-				} else {
-					was = 1
-				}
-			}
-			return dst, nil
-		}
-	}
-	return func(dst []byte, v unsafe.Pointer) (_ []byte, err error) {
-		v = unsafe.Add(v, offset)
+
+	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 		dst = append(dst, '{')
 		was := 0
+		var err error
 		for i := range fields {
 			if was != 0 {
 				dst = append(dst, ',')
 			}
 			dst = append(dst, fields[i].Key...)
 			dstLen := len(dst)
-			dst, err = fields[i].Encoder(dst, v)
+			dst, err = fields[i].Encoder(dst, unsafe.Add(value, fields[i].Offset))
 			if err != nil {
 				return dst, err
 			}
@@ -302,7 +273,7 @@ func structEncoder(deep uint, flags Flags, t reflect.Type, byPointer bool) Unsaf
 		dst = append(dst, '}')
 		return dst, nil
 	}
-}*/
+}
 
 func pointerEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer bool) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
