@@ -32,10 +32,6 @@ func nopEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
 	return dst, nil
 }
 
-func panicEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
-	panic("it's panic encoder! smth was wrong")
-}
-
 func createItemTypeEncoder(deep uint, flags Flags, t reflect.Type) UnsafeEncoder {
 	return createTypeEncoder(deep, flags, t, false, false, t.Kind() == reflect.Pointer)
 }
@@ -202,7 +198,7 @@ func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPoin
 		}
 	}
 
-	return panicEncoder
+	return nopEncoder
 }
 
 func pointerEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer, doUnpack bool) UnsafeEncoder {
