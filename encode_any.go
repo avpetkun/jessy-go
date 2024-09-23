@@ -224,9 +224,9 @@ func structEncoder(deep uint, flags Flags, t reflect.Type, byPointer, embedded b
 		const wasStruct = true
 		var fieldEncoder UnsafeEncoder
 		if makeUnpack {
-			fieldEncoder = pointerEncoder(deep, flags, ft, wasStruct, byPointer, f.Anonymous)
+			fieldEncoder = pointerEncoder(deep, fieldFlags, ft, wasStruct, byPointer, f.Anonymous)
 		} else {
-			fieldEncoder = createTypeEncoder(deep, flags, ft, wasStruct, byPointer, f.Anonymous)
+			fieldEncoder = createTypeEncoder(deep, fieldFlags, ft, wasStruct, byPointer, f.Anonymous)
 		}
 
 		if f.Anonymous {
