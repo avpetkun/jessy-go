@@ -60,17 +60,9 @@ func sliceBase64Encoder(flags Flags) UnsafeEncoder {
 			if omitEmpty {
 				return dst, nil
 			}
-			if cap(data) == 0 {
-				return append(dst, "null"...), nil
-			}
 			return append(dst, '[', ']'), nil
 		}
-		if len(data) > 100 {
-			panic("wrong slice")
-		}
-		// TODO: remove
-		return append(dst, data...), nil
-		//return zstr.AppendBase64String(dst, data), nil
+		return zstr.AppendBase64String(dst, data), nil
 	}
 }
 

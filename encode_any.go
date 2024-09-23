@@ -40,6 +40,21 @@ func createTypeEncoderNested(deep uint, flags Flags, t reflect.Type) UnsafeEncod
 	return createTypeEncoder(deep, flags, t, false, false, t.Kind() == reflect.Pointer)
 }
 
+func tReallyImplements(t, inter reflect.Type) bool {
+	if t.Implements(inter) {
+		if t.Kind() == reflect.Struct {
+			for i := range t.NumField() {
+				f := t.Field(i)
+				if f.Anonymous && f.Type.Implements(inter) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	return false
+}
+
 func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer, doUnpack bool) UnsafeEncoder {
 	if deep++; deep >= MarshalMaxDeep {
 		return nopEncoder
@@ -49,26 +64,37 @@ func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPoin
 		return pointerEncoder(deep, flags, t, wasStruct, byPointer, doUnpack)
 	}
 
+	if t.Kind() == reflect.Pointer {
+		byPointer = true
+		doUnpack = t.Elem().Kind() != reflect.Struct
+		return createTypeEncoder(deep, flags, t.Elem(), wasStruct, byPointer, doUnpack)
+	}
+
 	for i := range customEncoders {
 		if customEncoders[i].Type == t {
 			return customEncoders[i].Encoder(flags)
 		}
 	}
 
-	/*switch {
-	case t.Implements(typeAppendMarshaler):
+	tp := reflect.PointerTo(t)
+	switch {
+	case tReallyImplements(t, typeAppendMarshaler):
 		return appendMarshalerEncoder(t)
-	case t.Implements(typeMarshaler):
-		return marshalerEncoder(t, unpack && t.Kind() == reflect.Pointer)
-	case t.Implements(typeTextMarshaler):
+	case tReallyImplements(tp, typeAppendMarshaler):
+		return appendMarshalerEncoder(tp)
+	case tReallyImplements(t, typeMarshaler):
+		return marshalerEncoder(t)
+	case tReallyImplements(tp, typeMarshaler):
+		return marshalerEncoder(tp)
+	case tReallyImplements(t, typeTextMarshaler):
 		return textMarshalerEncoder(t, flags)
-	}*/
+	case tReallyImplements(tp, typeTextMarshaler):
+		return textMarshalerEncoder(tp, flags)
+	}
 
 	switch t.Kind() {
-	case reflect.Pointer:
-		doUnpack = t.Elem().Kind() != reflect.Struct
-		return createTypeEncoder(deep, flags, t.Elem(), wasStruct, true, doUnpack)
 	case reflect.Struct:
+		wasStruct = true
 		fieldsCount := t.NumField()
 		if fieldsCount == 0 {
 			return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
@@ -101,7 +127,7 @@ func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPoin
 				dst = append(dst, '"')
 				dst = append(dst, f.Name...)
 				dst = append(dst, '"', ':')
-				dst, _ = createTypeEncoder(deep, flags, ft, true, byPointer, doUnpack)(dst, fValue)
+				dst, _ = createTypeEncoder(deep, flags, ft, wasStruct, byPointer, doUnpack)(dst, fValue)
 			}
 			dst = append(dst, '}')
 			return dst, nil
@@ -111,7 +137,8 @@ func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPoin
 		return stringEncoder(flags)
 	case reflect.Map:
 		if wasStruct {
-			return pointerEncoder(deep, flags, t, false, false, true)
+			wasStruct, byPointer, doUnpack = false, false, true
+			return pointerEncoder(deep, flags, t, wasStruct, byPointer, doUnpack)
 		}
 		return mapEncoder(deep, t, flags)
 	case reflect.Slice:
@@ -178,18 +205,12 @@ func pointerEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer
 	}
 }
 
-func marshalerEncoder(t reflect.Type, unpack bool) UnsafeEncoder {
+func marshalerEncoder(t reflect.Type) UnsafeEncoder {
 	getInterface := zgo.NewInterfacerFromRType[Marshaler](t)
 	if getInterface == nil {
 		return nopEncoder
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		if unpack {
-			v = *(*unsafe.Pointer)(v)
-		}
-		if v == nil {
-			return append(dst, "null"...), nil
-		}
 		data, err := getInterface(v).MarshalJSON()
 		if err != nil {
 			return dst, err
@@ -221,13 +242,19 @@ func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 		return nopEncoder
 	}
 
+	if needValidate {
+		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+			data, err := getInterface(v).MarshalText()
+			if err != nil {
+				return dst, nil
+			}
+			return zstr.AppendQuotedString(dst, data, escapeHTML), nil
+		}
+	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		data, err := getInterface(v).MarshalText()
 		if err != nil {
 			return dst, nil
-		}
-		if needValidate {
-			return zstr.AppendQuotedString(dst, data, escapeHTML), nil
 		}
 		dst = append(dst, '"')
 		dst = append(dst, data...)

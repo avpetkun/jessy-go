@@ -224,7 +224,7 @@ func getTestStruct() Struct {
 			123,
 		},
 
-		TMarhalVal: TMarshalVal{[]byte(`"TMarhalVal"`)},
+		TMarhalVal: TMarshalVal{[]byte("TMarhalVal")},
 
 		AppendMarshalVal: AppendMarshalVal{[]byte(`"AppendMarshalVal"`)},
 
