@@ -1,6 +1,8 @@
 package jessy
 
 import (
+	"bytes"
+	"encoding/json"
 	"reflect"
 	"unsafe"
 )
@@ -53,4 +55,27 @@ func AppendMarshalFast(dst []byte, value any) (data []byte, err error) {
 
 func AppendMarshalFlags(dst []byte, value any, flags Flags) (data []byte, err error) {
 	return encodeAny(dst, value, flags)
+}
+
+func MarshalIndent(v any, prefix, indent string) (data []byte, err error) {
+	data, err = Marshal(v)
+	if err != nil {
+		return
+	}
+	var buf bytes.Buffer
+	err = Indent(&buf, data, prefix, indent)
+	data = buf.Bytes()
+	return
+}
+
+func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
+	return json.Indent(dst, src, prefix, indent)
+}
+
+func HTMLEscape(dst *bytes.Buffer, src []byte) {
+	json.HTMLEscape(dst, src)
+}
+
+func Compact(dst *bytes.Buffer, src []byte) error {
+	return json.Compact(dst, src)
 }
