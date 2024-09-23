@@ -118,7 +118,15 @@ type Struct struct {
 	DoubleIntPtr      **int
 	DoubleStrSlicePtr **[]string
 
+	StructSlice    []SliceStruct
+	StructSlicePtr []*SliceStruct
+
 	_ struct{}
+}
+
+type SliceStruct struct {
+	A int
+	B int
 }
 
 type AppendMarshalVal struct{ data []byte }
@@ -247,6 +255,13 @@ func getTestStruct() Struct {
 
 		AnyVal1: 123,
 		AnyVal2: "abc",
+
+		StructSlice: []SliceStruct{
+			{1, 2}, {3, 4},
+		},
+		StructSlicePtr: []*SliceStruct{
+			{1, 2}, {3, 4},
+		},
 	}
 
 	s.IntPtr = &s.Int

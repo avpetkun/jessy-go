@@ -70,7 +70,7 @@ func createDirectTypeEncoder(flags Flags, t reflect.Type) UnsafeEncoder {
 
 func createItemTypeEncoder(deep uint, flags Flags, t reflect.Type) UnsafeEncoder {
 	if t.Kind() == reflect.Pointer {
-		return pointerEncoder(deep, flags, t, false, false, false)
+		return pointerEncoder(deep, flags, t.Elem(), false, false, false)
 	}
 	return createTypeEncoder(deep, flags, t, false, false, false)
 }
