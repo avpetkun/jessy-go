@@ -32,10 +32,6 @@ func nopEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
 	return dst, nil
 }
 
-func createItemTypeEncoder(deep uint, flags Flags, t reflect.Type) UnsafeEncoder {
-	return createTypeEncoder(deep, flags, t, false, false, t.Kind() == reflect.Pointer)
-}
-
 func tReallyImplements(t, inter reflect.Type) bool {
 	if t.Implements(inter) {
 		if t.Kind() == reflect.Struct {
@@ -67,22 +63,26 @@ func createDirectTypeEncoder(flags Flags, t reflect.Type) UnsafeEncoder {
 	case tp.Implements(typeTextMarshaler):
 		return textMarshalerEncoder(tp, flags)
 	}
-	return createTypeEncoder(0, flags, t, false, false, false)
+	return createTypeEncoder(0, flags, t, false, false)
 }
 
-func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer, doUnpack bool) UnsafeEncoder {
+func createItemTypeEncoder(deep uint, flags Flags, t reflect.Type) UnsafeEncoder {
+	if t.Kind() == reflect.Pointer {
+		return pointerEncoder(deep, flags, t, false, false)
+	}
+	return createTypeEncoder(deep, flags, t, false, false)
+}
+
+func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer bool) UnsafeEncoder {
 	if deep++; deep >= MarshalMaxDeep {
 		return nopEncoder
 	}
 
-	if doUnpack {
-		return pointerEncoder(deep, flags, t, wasStruct, byPointer, doUnpack)
-	}
-
 	if t.Kind() == reflect.Pointer {
-		byPointer = true
-		doUnpack = t.Elem().Kind() != reflect.Struct
-		return createTypeEncoder(deep, flags, t.Elem(), wasStruct, byPointer, doUnpack)
+		if t.Elem().Kind() == reflect.Struct {
+			return createTypeEncoder(deep, flags, t.Elem(), wasStruct, true)
+		}
+		return pointerEncoder(deep, flags, t.Elem(), wasStruct, true)
 	}
 
 	for i := range customEncoders {
@@ -114,8 +114,7 @@ func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPoin
 		return stringEncoder(flags)
 	case reflect.Map:
 		if wasStruct {
-			wasStruct, byPointer, doUnpack = false, false, true
-			return pointerEncoder(deep, flags, t, wasStruct, byPointer, doUnpack)
+			return pointerEncoder(deep, flags, t, false, false)
 		}
 		return mapEncoder(deep, t, flags)
 	case reflect.Slice:
@@ -197,7 +196,15 @@ func structEncoder(deep uint, flags Flags, t reflect.Type, byPointer bool) Unsaf
 			dst = append(dst, '"')
 			dst = append(dst, f.Name...)
 			dst = append(dst, '"', ':')
-			dst, _ = createTypeEncoder(deep, flags, ft, wasStruct, byPointer, doUnpack)(dst, fValue)
+
+			var enc UnsafeEncoder
+			if doUnpack {
+				enc = pointerEncoder(deep, flags, ft, wasStruct, byPointer)
+			} else {
+				enc = createTypeEncoder(deep, flags, ft, wasStruct, byPointer)
+			}
+
+			dst, _ = enc(dst, fValue)
 		}
 		dst = append(dst, '}')
 		return dst, nil
@@ -297,15 +304,13 @@ func structEncoder(deep uint, flags Flags, t reflect.Type, byPointer bool) Unsaf
 	}
 }*/
 
-func pointerEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer, doUnpack bool) UnsafeEncoder {
+func pointerEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer bool) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
-	elemEncoder := createTypeEncoder(deep, flags, t, wasStruct, byPointer, false)
+	elemEncoder := createTypeEncoder(deep, flags, t, wasStruct, byPointer)
 
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		if doUnpack {
-			v = *(*unsafe.Pointer)(v)
-		}
+		v = *(*unsafe.Pointer)(v)
 		if v == nil {
 			if omitEmpty {
 				return dst, nil
