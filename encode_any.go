@@ -49,6 +49,12 @@ func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPoin
 		return pointerEncoder(deep, flags, t, wasStruct, byPointer, doUnpack)
 	}
 
+	for i := range customEncoders {
+		if customEncoders[i].Type == t {
+			return customEncoders[i].Encoder(flags)
+		}
+	}
+
 	/*switch {
 	case t.Implements(typeAppendMarshaler):
 		return appendMarshalerEncoder(t)
