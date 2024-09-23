@@ -22,8 +22,8 @@ func mapEncoderUnsorted(deep uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
-	encodeKey := createTypeEncoder(deep, t.Key(), (flags | NeedQuotes))
-	encodeVal := createTypeEncoder(deep, t.Elem(), flags)
+	encodeKey := createTypeEncoderNested(deep, (flags | NeedQuotes), t.Key())
+	encodeVal := createTypeEncoderNested(deep, flags, t.Elem())
 	getIterator := zgo.NewMapIteratorFromRType(t)
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
@@ -96,19 +96,13 @@ func mapEncoderSorted(deep uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
-	encodeKey := createTypeEncoder(deep, t.Key(), (flags | NeedQuotes))
-	encodeVal := createTypeEncoder(deep, t.Elem(), flags)
+	encodeKey := createTypeEncoderNested(deep, (flags | NeedQuotes), t.Key())
+	encodeVal := createTypeEncoderNested(deep, flags, t.Elem())
 	getIterator := zgo.NewMapIteratorFromRType(t)
 
 	bufPool := sync.Pool{New: func() any { return new(mapSortBuf) }}
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
-		if value == nil {
-			if omitEmpty {
-				return dst, nil
-			}
-			return append(dst, 'n', 'u', 'l', 'l'), nil
-		}
 		it, count := getIterator(value)
 		if it == nil {
 			if omitEmpty {

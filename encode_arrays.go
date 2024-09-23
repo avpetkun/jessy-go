@@ -18,11 +18,11 @@ func sliceEncoder(deep uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	flags = flags.excludes(OmitEmpty)
 
 	elemSize := uint(elem.Size())
-	elemEncoder := createTypeEncoder(deep, elem, flags)
+	elemEncoder := createTypeEncoderNested(deep, flags, elem)
 
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		h := (*zgo.Slice)(v)
-		if h.Len == 0 {
+		if h == nil || h.Len == 0 {
 			if omitEmpty {
 				return dst, nil
 			}
@@ -60,9 +60,17 @@ func sliceBase64Encoder(flags Flags) UnsafeEncoder {
 			if omitEmpty {
 				return dst, nil
 			}
+			if cap(data) == 0 {
+				return append(dst, "null"...), nil
+			}
 			return append(dst, '[', ']'), nil
 		}
-		return zstr.AppendBase64String(dst, data), nil
+		if len(data) > 100 {
+			panic("wrong slice")
+		}
+		// TODO: remove
+		return append(dst, data...), nil
+		//return zstr.AppendBase64String(dst, data), nil
 	}
 }
 
@@ -74,7 +82,7 @@ func arrayEncoder(deep uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	}
 
 	elemSize := uint(elem.Size())
-	elemEncoder := createTypeEncoder(deep, elem, flags.excludes(OmitEmpty))
+	elemEncoder := createTypeEncoderNested(deep, flags.excludes(OmitEmpty), elem)
 
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		dst = append(dst, '[')

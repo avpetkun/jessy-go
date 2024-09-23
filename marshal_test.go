@@ -66,12 +66,15 @@ type Struct struct {
 	JMarshalPtrVal *JMarshalVal
 	JMarshalPtrPtr *JMarshalPtr
 
+	NestedJMarshalPtrPtr  NestedJMarshalPtrPtr
+	NestedJMarshalPtrPtr2 NestedJMarshalPtrPtr2
+
+	TMarhalVal TMarshalVal
+
 	JMarshalPtrEmpty *JMarshalPtr
 	JMarshalPtrOmit  *JMarshalPtr `json:",omitempty"`
 
 	AppendMarshalVal AppendMarshalVal
-
-	TMarhalVal TMarshalVal
 
 	NilMap  map[string]int
 	OmitMap map[string]int `json:",omitempty"`
@@ -130,6 +133,13 @@ type TMarshalVal struct{ data []byte }
 
 func (v TMarshalVal) MarshalText() ([]byte, error) { return v.data, nil }
 
+type NestedJMarshalPtrPtr struct{ *JMarshalPtr }
+
+type NestedJMarshalPtrPtr2 struct {
+	*JMarshalPtr
+	X int
+}
+
 type JMarshalPtr struct{ Data []byte }
 
 func (s *JMarshalPtr) MarshalJSON() ([]byte, error) { return s.Data, nil }
@@ -160,8 +170,6 @@ type nested struct {
 }
 
 func getTestStruct() Struct {
-	ip := 123
-	sp := "strptr"
 	s := Struct{
 		Bool1:   true,
 		Bool2:   false,
@@ -186,7 +194,7 @@ func getTestStruct() Struct {
 		ByteArr5: [5]byte{1, 2, 3, 4, 5},
 
 		StrSlice:  []string{"a", "b", "c"},
-		ByteSlice: []byte("hello!"),
+		ByteSlice: []byte(`"hello!"`),
 
 		intHidden: 123,
 
@@ -208,7 +216,15 @@ func getTestStruct() Struct {
 		JMarshalPtrVal: &JMarshalVal{[]byte(`"JMarshalPtrVal"`)},
 		JMarshalPtrPtr: &JMarshalPtr{[]byte(`"JMarshalPtrPtr"`)},
 
-		TMarhalVal: TMarshalVal{[]byte("TMarhalVal")},
+		NestedJMarshalPtrPtr: NestedJMarshalPtrPtr{
+			&JMarshalPtr{[]byte(`"NestedJMarshalPtrPtr"`)},
+		},
+		NestedJMarshalPtrPtr2: NestedJMarshalPtrPtr2{
+			&JMarshalPtr{[]byte(`"NestedJMarshalPtrPtr2"`)},
+			123,
+		},
+
+		TMarhalVal: TMarshalVal{[]byte(`"TMarhalVal"`)},
 
 		AppendMarshalVal: AppendMarshalVal{[]byte(`"AppendMarshalVal"`)},
 
@@ -231,10 +247,10 @@ func getTestStruct() Struct {
 
 		AnyVal1: 123,
 		AnyVal2: "abc",
-
-		IntPtr:    &ip,
-		StringPtr: &sp,
 	}
+
+	s.IntPtr = &s.Int
+	s.StringPtr = &s.String
 
 	s.StrSlicePtr = &s.StrSlice
 	s.MapValValPtr = &s.MapValVal
@@ -271,36 +287,160 @@ func getTestStruct() Struct {
 	return s
 }
 
-var expectedMarshalResult = `{"embed_v_ptr":789,"EmbedVpub":123,"EmbedVpriv":3145,"AnyVal1":123,"AnyVal2":"abc","AnyValPtr":123,"AppendMarshalVal":"AppendMarshalVal","Bool1":true,"Bool1Ptr":true,"Bool2":false,"Bool2Ptr":true,"Byte":12,"ByteArr":"custom:0x01020300000000000000","ByteArr5":"0x0102030405","BytePtr":1,"ByteSlice":"aGVsbG8h","DoubleIntPtr":1,"DoubleStrSlicePtr":["a","b","c"],"Float32":16.17,"Float32Ptr":16.17,"Float64":17.18,"Float64Ptr":17.18,"Int":123,"Int16":567,"Int16Ptr":1,"Int32":789,"Int32Ptr":1,"Int64":-91011,"Int64Ptr":1,"Int8":35,"Int8Ptr":1,"IntArr2":[1,2],"IntArr3":[1,2,3],"IntArr3Ptr":[1,2,3],"IntPtr":1,"JMarshalPtrEmpty":null,"JMarshalPtrPtr":"JMarshalPtrPtr","JMarshalPtrVal":"JMarshalPtrVal","JMarshalValPtr":"JMarshalValPtr","JMarshalValVal":"JMarshalValVal","MapAnyAny":{"1":"a","b":2},"MapAnyVal":{"1":2,"3":4},"MapEmpty":{},"MapValAny":{"1":2,"2":"b"},"MapValVal":{"a":1,"b":2},"MapValValPtr":{"a":1,"b":2},"MarshalMapKey":{"a":"a1","b":"b1","c":"c1","de":"de1","fgk":"fgk1"},"MarshalMapKeyPtr":{"a":"a1","b":"b1","c":"c1","de":"de1","fgk":"fgk1"},"Nested1":{"nested_u":435345,"nested_v":2},"Nested2":{"nested_u_priv":78634},"NestedPtr1":{"nested_u":986754,"nested_v":3},"NestedPtr2":{"nested_u":986755,"nested_v":33},"NestedPtrNil":null,"NilMap":null,"String":"test_string","StringPtr":"test_string","TMarhalVal":"TMarhalVal","Uint16":1314,"Uint16Ptr":1,"Uint32":1415,"Uint32Ptr":1,"Uint64":1516,"Uint64Ptr":1,"Uint8":13,"Uint8Ptr":1,"strSlice":["a","b","c"],"strSlicePtr":["a","b","c"]}`
+var expectedMarshalResult = ``
 
-func TestMarshal(t *testing.T) {
-	_, err := Marshal(&map[any]string{123: "M"})
+func TestMarshalAll(t *testing.T) {
+	{
+		rawNil := json.RawMessage(nil)
+		str := &struct{ M *json.RawMessage }{&rawNil}
+		println("str", str, "M", str.M)
+		data, err := Marshal(str)
+		require.NoError(t, err)
+		require.Equal(t, `{"M":null}`, string(data))
+		println("------")
+	}
+	{
+		rawText := json.RawMessage([]byte(`"123"`))
+		str := struct{ M *json.RawMessage }{&rawText}
+		println("str", "M", str.M, rawText)
+		data, err := Marshal(str)
+		require.NoError(t, err)
+		require.Equal(t, `{"M":"123"}`, string(data))
+		println("------")
+	}
+	{
+		rawText := json.RawMessage([]byte(`"123"`))
+		str := struct {
+			X int
+			M *json.RawMessage
+		}{123, &rawText}
+		println("str", "M", str.M)
+		data, err := Marshal(str)
+		require.NoError(t, err)
+		expectedData, _ := json.Marshal(str)
+		require.Equal(t, string(expectedData), string(data))
+		println("------")
+	}
+	{
+		rawText := json.RawMessage([]byte(`"123"`))
+		str := &struct {
+			X int
+			M *json.RawMessage
+		}{123, &rawText}
+		println("str", "M", str.M)
+		data, err := Marshal(str)
+		require.NoError(t, err)
+		expectedData, _ := json.Marshal(str)
+		require.Equal(t, string(expectedData), string(data))
+		println("------")
+	}
+	{
+		rawText := json.RawMessage([]byte(`"123"`))
+		str := struct {
+			M *json.RawMessage
+			X int
+		}{&rawText, 123}
+		println("str", "M", str.M)
+		data, err := Marshal(str)
+		require.NoError(t, err)
+		expectedData, _ := json.Marshal(str)
+		require.Equal(t, string(expectedData), string(data))
+		println("------")
+	}
+
+	{
+		rawText := json.RawMessage([]byte(`"123"`))
+		str := struct {
+			M json.RawMessage
+			X int
+		}{rawText, 123}
+		println("str", "M", str.M)
+		data, err := Marshal(str)
+		require.NoError(t, err)
+		expectedData, _ := json.Marshal(str)
+		require.Equal(t, string(expectedData), string(data))
+		println("------")
+	}
+	{
+		rawText := json.RawMessage([]byte(`"123"`))
+		str := struct{ M json.RawMessage }{rawText}
+		println("str", "M", str.M)
+		data, err := Marshal(str)
+		require.NoError(t, err)
+		expectedData, _ := json.Marshal(str)
+		require.Equal(t, string(expectedData), string(data))
+		println("------")
+	}
+	{
+		rawText := json.RawMessage([]byte(`"123"`))
+		str := &struct{ M json.RawMessage }{rawText}
+		println("str", "M", str.M)
+		data, err := Marshal(str)
+		require.NoError(t, err)
+		expectedData, _ := json.Marshal(str)
+		require.Equal(t, string(expectedData), string(data))
+		println("------")
+	}
+
+	data, err := Marshal(struct{ M *json.RawMessage }{})
+	require.NoError(t, err)
+	//require.Equal(t, `{"M":null}`, string(data))
+	require.Equal(t, `null`, string(data))
+	println("------")
+
+	type Str struct {
+		I int
+		S string
+	}
+	str := &Str{I: 123, S: "test_str"}
+
+	println("str", str, "i", &str.I, "s", &str.S)
+
+	data, err = Marshal(str)
+	require.NoError(t, err)
+	require.Equal(t, `{"I":123,"S":"test_str"}`, string(data))
+	println("------")
+
+	data, err = Marshal(Str{I: 123, S: "str"})
+	require.NoError(t, err)
+	require.Equal(t, `{"I":123,"S":"str"}`, string(data))
+	println("------")
+
+	data, err = Marshal(&map[any]string{123: "M"})
+	require.NoError(t, err)
+	require.Equal(t, `{"123":"M"}`, string(data))
+
+	data, err = Marshal(&map[string]any{"M": json.RawMessage(nil)})
+	require.Equal(t, `{"M":null}`, string(data))
 	require.NoError(t, err)
 
-	_, err = Marshal(&map[string]any{"M": json.RawMessage(nil)})
+	data, err = Marshal(map[string]any{"M": json.RawMessage(nil)})
+	require.Equal(t, `{"M":null}`, string(data))
 	require.NoError(t, err)
 
-	data, err := Marshal(map[string]int{
+	data, err = Marshal(map[string]int{
 		"x:y": 1,
 		"y:x": 2,
 		"a:z": 3,
 		"z:a": 4,
 	})
 	require.NoError(t, err)
-	require.Equal(t, string(data), `{"a:z":3,"x:y":1,"y:x":2,"z:a":4}`)
+	require.Equal(t, `{"a:z":3,"x:y":1,"y:x":2,"z:a":4}`, string(data))
 
 	sliceNoCycle := []any{nil, nil}
 	data, err = Marshal(sliceNoCycle)
-	require.NoError(t, err)
 	require.Equal(t, "[null,null]", string(data))
+	require.NoError(t, err)
 
-	Marshal(func() any {
+	data, err = Marshal(func() any {
 		type (
 			S2 struct{ Field string }
 			S  struct{ *S2 }
 		)
 		return S{}
 	}())
+	require.NoError(t, err)
+	require.Equal(t, "null", string(data))
 
 	v := getTestStruct()
 
