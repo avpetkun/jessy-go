@@ -18,7 +18,7 @@ func sliceEncoder(deep uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	flags = flags.excludes(OmitEmpty)
 
 	elemSize := uint(elem.Size())
-	elemEncoder := createTypeEncoderNested(deep, flags, elem)
+	elemEncoder := createItemTypeEncoder(deep, flags, elem)
 
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		h := (*zgo.Slice)(v)
@@ -74,7 +74,7 @@ func arrayEncoder(deep uint, t reflect.Type, flags Flags) UnsafeEncoder {
 	}
 
 	elemSize := uint(elem.Size())
-	elemEncoder := createTypeEncoderNested(deep, flags.excludes(OmitEmpty), elem)
+	elemEncoder := createItemTypeEncoder(deep, flags.excludes(OmitEmpty), elem)
 
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		dst = append(dst, '[')

@@ -23,7 +23,7 @@ func getTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
 	if val, ok := encodersTypesCache[flags].Load(typ); ok {
 		return val.(UnsafeEncoder)
 	}
-	encoder := createTypeEncoder(0, flags, typ.Native(), false, false, false)
+	encoder := createDirectTypeEncoder(flags, typ.Native())
 	encodersTypesCache[flags].Store(typ, encoder)
 	return encoder
 }
@@ -36,7 +36,7 @@ func panicEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
 	panic("it's panic encoder! smth was wrong")
 }
 
-func createTypeEncoderNested(deep uint, flags Flags, t reflect.Type) UnsafeEncoder {
+func createItemTypeEncoder(deep uint, flags Flags, t reflect.Type) UnsafeEncoder {
 	return createTypeEncoder(deep, flags, t, false, false, t.Kind() == reflect.Pointer)
 }
 
@@ -53,6 +53,25 @@ func tReallyImplements(t, inter reflect.Type) bool {
 		return true
 	}
 	return false
+}
+
+func createDirectTypeEncoder(flags Flags, t reflect.Type) UnsafeEncoder {
+	tp := reflect.PointerTo(t)
+	switch {
+	case t.Implements(typeAppendMarshaler):
+		return appendMarshalerEncoder(t)
+	case tp.Implements(typeAppendMarshaler):
+		return appendMarshalerEncoder(tp)
+	case t.Implements(typeMarshaler):
+		return marshalerEncoder(t)
+	case tp.Implements(typeMarshaler):
+		return marshalerEncoder(tp)
+	case t.Implements(typeTextMarshaler):
+		return textMarshalerEncoder(t, flags)
+	case tp.Implements(typeTextMarshaler):
+		return textMarshalerEncoder(tp, flags)
+	}
+	return createTypeEncoder(0, flags, t, false, false, false)
 }
 
 func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer, doUnpack bool) UnsafeEncoder {
