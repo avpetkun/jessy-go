@@ -239,6 +239,10 @@ func structEncoder(deep int, flags Flags, t reflect.Type, byPointer, embedded bo
 		}
 	}
 
+	if len(fields) == 0 {
+		return nopStructEncoder
+	}
+
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].Key < fields[j].Key
 	})
@@ -253,6 +257,13 @@ func structEncoder(deep int, flags Flags, t reflect.Type, byPointer, embedded bo
 		return structEncoderPretty(deep, fields, embedded)
 	}
 	return structEncoderMinimal(fields, embedded)
+}
+
+func nopStructEncoder(dst []byte, value unsafe.Pointer) ([]byte, error) {
+	if value == nil {
+		return append(dst, 'n', 'u', 'l', 'l'), nil
+	}
+	return append(dst, '{', '}'), nil
 }
 
 func structEncoderPretty(deep int, fields []StructField, embedded bool) UnsafeEncoder {
