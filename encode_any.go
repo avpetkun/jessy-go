@@ -354,12 +354,16 @@ func structEncoderMinimal(fields []StructField, embedded bool) UnsafeEncoder {
 
 func pointerEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPointer, embedded bool) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
+	needQuotes := flags.Has(NeedQuotes)
 	flags = flags.excludes(OmitEmpty)
 	elemEncoder := createTypeEncoder(deep, flags, t, wasStruct, byPointer, embedded)
 
 	if t.Kind() == reflect.Slice && !wasStruct {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			if v == nil {
+				if needQuotes {
+					return append(dst, '"', '"'), nil
+				}
 				if omitEmpty || embedded {
 					return dst, nil
 				}
@@ -371,6 +375,9 @@ func pointerEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPointer,
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = *(*unsafe.Pointer)(v)
 		if v == nil {
+			if needQuotes {
+				return append(dst, '"', '"'), nil
+			}
 			if omitEmpty || embedded {
 				return dst, nil
 			}
