@@ -93,6 +93,9 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPoint
 			return customEncoders[i].Encoder(flags)
 		}
 	}
+	if t == timeType {
+		return timeEncoder(flags)
+	}
 
 	tp := reflect.PointerTo(t)
 	switch {
