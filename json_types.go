@@ -7,13 +7,13 @@ import (
 )
 
 var (
-	typeTextMarshaler   = reflect.TypeFor[TextMarshaler]()
-	typeTextUnmarshaler = reflect.TypeFor[TextUnmarshaler]()
-
-	typeMarshaler   = reflect.TypeFor[Marshaler]()
-	typeUnmarshaler = reflect.TypeFor[Unmarshaler]()
-
 	typeAppendMarshaler = reflect.TypeFor[AppendMarshaler]()
+	typeMarshaler       = reflect.TypeFor[Marshaler]()
+	typeTextMarshaler   = reflect.TypeFor[TextMarshaler]()
+
+	// TODO:
+	typeTextUnmarshaler = reflect.TypeFor[TextUnmarshaler]()
+	typeUnmarshaler     = reflect.TypeFor[Unmarshaler]()
 )
 
 type (
