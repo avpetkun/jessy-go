@@ -135,6 +135,10 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPoint
 		return float32Encoder(flags)
 	case reflect.Float64:
 		return float64Encoder(flags)
+	case reflect.Complex64:
+		return complex64Encoder(flags)
+	case reflect.Complex128:
+		return complex128Encoder(flags)
 
 	case reflect.Interface:
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {

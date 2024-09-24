@@ -517,7 +517,93 @@ func float64Encoder(flags Flags) UnsafeEncoder {
 	}
 }
 
+func complex64Encoder(flags Flags) UnsafeEncoder {
+	if flags.Has(OmitEmpty) {
+		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+			n := *(*complex64)(v)
+			if n == 0 {
+				return dst, nil
+			}
+			r, i := float64(real(n)), float64(imag(n))
+			if math.IsNaN(r) || math.IsInf(r, 0) {
+				return dst, errComplexNum
+			}
+			if math.IsNaN(i) || math.IsInf(i, 0) {
+				return dst, errComplexNum
+			}
+			return appendQuotedComplex(dst, r, i), nil
+		}
+	}
+	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		n := *(*complex64)(v)
+		if n == 0 {
+			return append(dst, '"', '0', '+', '0', 'i', '"'), nil
+		}
+		r, i := float64(real(n)), float64(imag(n))
+		if math.IsNaN(r) || math.IsInf(r, 0) {
+			return dst, errComplexNum
+		}
+		if math.IsNaN(i) || math.IsInf(i, 0) {
+			return dst, errComplexNum
+		}
+		return appendQuotedComplex(dst, r, i), nil
+	}
+}
+
+func complex128Encoder(flags Flags) UnsafeEncoder {
+	if flags.Has(OmitEmpty) {
+		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+			n := *(*complex128)(v)
+			if n == 0 {
+				return dst, nil
+			}
+			r, i := real(n), imag(n)
+			if math.IsNaN(r) || math.IsInf(r, 0) {
+				return dst, errComplexNum
+			}
+			if math.IsNaN(i) || math.IsInf(i, 0) {
+				return dst, errComplexNum
+			}
+			return appendQuotedComplex(dst, r, i), nil
+		}
+	}
+	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		n := *(*complex128)(v)
+		if n == 0 {
+			return append(dst, '"', '0', '+', '0', 'i', '"'), nil
+		}
+		r, i := real(n), imag(n)
+		if math.IsNaN(r) || math.IsInf(r, 0) {
+			return dst, errComplexNum
+		}
+		if math.IsNaN(i) || math.IsInf(i, 0) {
+			return dst, errComplexNum
+		}
+		return appendQuotedComplex(dst, r, i), nil
+	}
+}
+
 var errFloatNum = errors.New("float number is NaN or +-Inf")
+var errComplexNum = errors.New("complex float parts is NaN or +-Inf")
+
+func appendQuotedComplex(dst []byte, real, imag float64) []byte {
+	dst = append(dst, '"')
+
+	dst = appendFloat64(dst, real)
+
+	dst = append(dst, '+')
+	imIdx := len(dst)
+
+	dst = appendFloat64(dst, imag)
+	dst = append(dst, 'i')
+	dst = append(dst, '"')
+
+	if dst[imIdx] == '-' {
+		copy(dst[imIdx-1:], dst[imIdx:])
+		dst = dst[:len(dst)-1]
+	}
+	return dst
+}
 
 // from encoding/json
 func appendFloat32(b []byte, f float64) []byte {
