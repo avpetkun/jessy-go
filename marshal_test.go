@@ -543,6 +543,13 @@ func BenchmarkMarshal(b *testing.B) {
 			buf, _ = AppendMarshalFast(buf[:0], value)
 		}
 	})
+	b.Run("jessy-fast-pretty", func(b *testing.B) {
+		buf := make([]byte, 1024)
+		b.ResetTimer()
+		for range b.N {
+			buf, _ = AppendMarshalFlags(buf[:0], value, EncodeFastest|PrettySpaces)
+		}
+	})
 	b.Run("jessy-standard", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
@@ -550,8 +557,23 @@ func BenchmarkMarshal(b *testing.B) {
 			buf, _ = AppendMarshal(buf[:0], value)
 		}
 	})
+	b.Run("jessy-standard-pretty", func(b *testing.B) {
+		buf := make([]byte, 1024)
+		b.ResetTimer()
+		for range b.N {
+			buf, _ = AppendMarshalFlags(buf[:0], value, EncodeStandard|PrettySpaces)
+		}
+	})
 	b.Run("json", func(b *testing.B) {
 		enc := json.NewEncoder(io.Discard)
+		b.ResetTimer()
+		for range b.N {
+			enc.Encode(value)
+		}
+	})
+	b.Run("json-indent", func(b *testing.B) {
+		enc := json.NewEncoder(io.Discard)
+		enc.SetIndent("", "\t")
 		b.ResetTimer()
 		for range b.N {
 			enc.Encode(value)
