@@ -11,6 +11,22 @@ import (
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
+func Precache(value any, flags Flags) {
+	eface := zgo.UnpackEface(value)
+	if eface.Type == nil {
+		return
+	}
+	getTypeEncoder(eface.Type, flags)
+}
+
+func PrecacheFor[T any](flags Flags) {
+	typ := zgo.NewTypeFor[T]()
+	if typ == nil {
+		return
+	}
+	getTypeEncoder(typ, flags)
+}
+
 func encodeAny(dst []byte, value any, flags Flags) ([]byte, error) {
 	eface := zgo.UnpackEface(value)
 	if eface.Type == nil {
