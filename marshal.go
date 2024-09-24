@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	MarshalMaxDeep uint = 10
+	MarshalMaxDeep = 10
 
 	customEncoders []customEncoder
 )
@@ -55,6 +55,14 @@ func AppendMarshalFast(dst []byte, value any) (data []byte, err error) {
 
 func AppendMarshalFlags(dst []byte, value any, flags Flags) (data []byte, err error) {
 	return encodeAny(dst, value, flags)
+}
+
+func MarshalPretty(value any) (data []byte, err error) {
+	return encodeAny(nil, value, EncodeStandard|PrettySpaces)
+}
+
+func MarshalFastPretty(value any) (data []byte, err error) {
+	return encodeAny(nil, value, EncodeFastest|PrettySpaces)
 }
 
 func MarshalIndent(v any, prefix, indent string) (data []byte, err error) {

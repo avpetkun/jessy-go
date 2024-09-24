@@ -487,6 +487,9 @@ func TestMarshalAll(t *testing.T) {
 		}
 	})
 
+	//data, _ = MarshalFastPretty(v)
+	//os.WriteFile("min.json", data, os.ModePerm)
+
 	for range 1000 {
 		data, err := Marshal(&v)
 		require.NoError(t, err)

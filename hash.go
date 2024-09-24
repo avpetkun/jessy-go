@@ -39,14 +39,14 @@ func nopHashEncoder(h *hashSum64, v unsafe.Pointer) error {
 	return nil
 }
 
-func createItemTypeHashEncoder(deep uint, t reflect.Type) hashEncoder {
+func createItemTypeHashEncoder(deep int, t reflect.Type) hashEncoder {
 	if t.Kind() == reflect.Pointer {
 		return pointerHashEncoder(deep, t.Elem(), false, false)
 	}
 	return createTypeHashEncoder(deep, t, false, false)
 }
 
-func createTypeHashEncoder(deep uint, t reflect.Type, wasStruct, byPointer bool) hashEncoder {
+func createTypeHashEncoder(deep int, t reflect.Type, wasStruct, byPointer bool) hashEncoder {
 	if deep++; deep >= MarshalMaxDeep {
 		return nopHashEncoder
 	}
@@ -100,7 +100,7 @@ func createTypeHashEncoder(deep uint, t reflect.Type, wasStruct, byPointer bool)
 	return nopHashEncoder
 }
 
-func structHashEncoder(deep uint, t reflect.Type, byPointer bool) hashEncoder {
+func structHashEncoder(deep int, t reflect.Type, byPointer bool) hashEncoder {
 	fieldsCount := t.NumField()
 	if fieldsCount == 0 {
 		return func(h *hashSum64, value unsafe.Pointer) error {
@@ -168,7 +168,7 @@ func structHashEncoder(deep uint, t reflect.Type, byPointer bool) hashEncoder {
 	}
 }
 
-func pointerHashEncoder(deep uint, t reflect.Type, wasStruct, byPointer bool) hashEncoder {
+func pointerHashEncoder(deep int, t reflect.Type, wasStruct, byPointer bool) hashEncoder {
 	elemEncoder := createTypeHashEncoder(deep, t, wasStruct, byPointer)
 
 	return func(h *hashSum64, v unsafe.Pointer) error {
@@ -231,7 +231,7 @@ func uint64HashEncoder(h *hashSum64, v unsafe.Pointer) error {
 	return nil
 }
 
-func arrayHashEncoder(deep uint, t reflect.Type) hashEncoder {
+func arrayHashEncoder(deep int, t reflect.Type) hashEncoder {
 	arrayLen := uint(t.Len())
 	elem := t.Elem()
 	if elem.Kind() == reflect.Uint8 {
@@ -261,7 +261,7 @@ func arrayByteHexHashEncoder(arrayLen uint) hashEncoder {
 	}
 }
 
-func sliceHashEncoder(deep uint, t reflect.Type) hashEncoder {
+func sliceHashEncoder(deep int, t reflect.Type) hashEncoder {
 	elem := t.Elem()
 	if elem.Kind() == reflect.Uint8 {
 		return sliceBase64HexEncoder
@@ -293,7 +293,7 @@ func sliceBase64HexEncoder(h *hashSum64, v unsafe.Pointer) error {
 	return nil
 }
 
-func mapHashEncoderSorted(deep uint, t reflect.Type) hashEncoder {
+func mapHashEncoderSorted(deep int, t reflect.Type) hashEncoder {
 	encodeKey := createItemTypeHashEncoder(deep, t.Key())
 	encodeVal := createItemTypeHashEncoder(deep, t.Elem())
 	getIterator := zgo.NewMapIteratorFromRType(t)

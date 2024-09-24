@@ -2,23 +2,64 @@ package jessy
 
 import (
 	"reflect"
+	"strings"
 	"unsafe"
 
 	"github.com/avpetkun/jessy-go/zgo"
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
-func sliceEncoder(deep uint, t reflect.Type, flags Flags) UnsafeEncoder {
+func sliceEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
 	elem := t.Elem()
 	if elem.Kind() == reflect.Uint8 {
 		return sliceBase64Encoder(flags)
 	}
 
+	prettySpaces := flags.Has(PrettySpaces)
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
 	elemSize := uint(elem.Size())
 	elemEncoder := createItemTypeEncoder(deep, flags, elem)
+
+	if prettySpaces {
+		deepSpaces0 := strings.Repeat("\t", deep)
+		deepSpaces2 := strings.Repeat("\t", deep+1)
+		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+			h := (*zgo.Slice)(v)
+			if h == nil || h.Len == 0 {
+				if omitEmpty {
+					return dst, nil
+				}
+				dst = append(dst, '[', ']')
+				return dst, nil
+			}
+			dst = append(dst, '[', '\n')
+			var err error
+			for i := range h.Len {
+				dst = append(dst, deepSpaces2...)
+				dstLen := len(dst)
+				dst, err = elemEncoder(dst, unsafe.Add(h.Data, elemSize*i))
+				if err != nil {
+					return dst, err
+				}
+				if len(dst) == dstLen {
+					dst = dst[:dstLen-deep-1]
+				} else {
+					dst = append(dst, ',', '\n')
+				}
+			}
+
+			if i := len(dst) - 2; dst[i] == ',' {
+				dst = dst[:i]
+			}
+			dst = append(dst, '\n')
+			dst = append(dst, deepSpaces0...)
+			dst = append(dst, ']')
+
+			return dst, nil
+		}
+	}
 
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		h := (*zgo.Slice)(v)
@@ -66,7 +107,7 @@ func sliceBase64Encoder(flags Flags) UnsafeEncoder {
 	}
 }
 
-func arrayEncoder(deep uint, t reflect.Type, flags Flags) UnsafeEncoder {
+func arrayEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
 	arrayLen := uint(t.Len())
 	elem := t.Elem()
 	if elem.Kind() == reflect.Uint8 {

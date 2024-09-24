@@ -65,26 +65,26 @@ func createDirectTypeEncoder(flags Flags, t reflect.Type) UnsafeEncoder {
 	case tp.Implements(typeTextMarshaler):
 		return textMarshalerEncoder(tp, flags)
 	}
-	return createTypeEncoder(0, flags, t, false, false, false)
+	return createTypeEncoder(-1, flags, t, false, false, false)
 }
 
-func createItemTypeEncoder(deep uint, flags Flags, t reflect.Type) UnsafeEncoder {
+func createItemTypeEncoder(deep int, flags Flags, t reflect.Type) UnsafeEncoder {
 	if t.Kind() == reflect.Pointer {
 		return pointerEncoder(deep, flags, t.Elem(), false, false, false)
 	}
 	return createTypeEncoder(deep, flags, t, false, false, false)
 }
 
-func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer, embedded bool) UnsafeEncoder {
-	if deep++; deep >= MarshalMaxDeep {
-		return nopEncoder
-	}
-
+func createTypeEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPointer, embedded bool) UnsafeEncoder {
 	if t.Kind() == reflect.Pointer {
 		if t.Elem().Kind() == reflect.Struct {
 			return createTypeEncoder(deep, flags, t.Elem(), wasStruct, true, embedded)
 		}
 		return pointerEncoder(deep, flags, t.Elem(), wasStruct, true, embedded)
+	}
+
+	if deep++; deep >= MarshalMaxDeep {
+		return nopEncoder
 	}
 
 	for i := range customEncoders {
@@ -164,21 +164,24 @@ func createTypeEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPoin
 	return nopEncoder
 }
 
-func structEncoder(deep uint, flags Flags, t reflect.Type, byPointer, embedded bool) UnsafeEncoder {
+type StructField struct {
+	Key     string
+	KeyLen  int
+	Offset  uintptr
+	Encoder UnsafeEncoder
+}
+
+func structEncoder(deep int, flags Flags, t reflect.Type, byPointer, embedded bool) UnsafeEncoder {
+	prettySpaces := flags.Has(PrettySpaces)
+
 	fieldsCount := t.NumField()
 	if fieldsCount == 0 {
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			return append(dst, '{', '}'), nil
 		}
 	}
-	type Field struct {
-		Key     string
-		KeyLen  int
-		Offset  uintptr
-		Encoder UnsafeEncoder
-	}
 
-	fields := make([]Field, 0, fieldsCount)
+	fields := make([]StructField, 0, fieldsCount)
 	for i := range fieldsCount {
 		f := t.Field(i)
 
@@ -230,14 +233,17 @@ func structEncoder(deep uint, flags Flags, t reflect.Type, byPointer, embedded b
 		}
 
 		if f.Anonymous {
-			fields = append(fields, Field{
+			fields = append(fields, StructField{
 				KeyLen:  0,
 				Offset:  f.Offset,
 				Encoder: fieldEncoder,
 			})
 		} else {
 			key := `"` + name + `":`
-			fields = append(fields, Field{
+			if prettySpaces {
+				key += " "
+			}
+			fields = append(fields, StructField{
 				Key:     key,
 				KeyLen:  len(key),
 				Offset:  f.Offset,
@@ -250,16 +256,46 @@ func structEncoder(deep uint, flags Flags, t reflect.Type, byPointer, embedded b
 		return fields[i].Key < fields[j].Key
 	})
 
-	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
-		if !embedded {
-			dst = append(dst, '{')
+	if prettySpaces {
+		return structEncoderPretty(deep, fields, embedded)
+	}
+	return structEncoderMinimal(fields, embedded)
+}
+
+func structEncoderPretty(deep int, fields []StructField, embedded bool) UnsafeEncoder {
+	if embedded && deep > 0 {
+		deep--
+	}
+	deepSpace0 := strings.Repeat("\t", deep)
+	deepSpace1 := strings.Repeat("\t", deep+1)
+	if embedded {
+		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+			var err error
+			for i := range fields {
+				dst = append(dst, deepSpace0...)
+				dst = append(dst, fields[i].Key...)
+				dstLen := len(dst)
+				dst, err = fields[i].Encoder(dst, unsafe.Add(value, fields[i].Offset))
+				if err != nil {
+					return dst, err
+				}
+				if len(dst) == dstLen {
+					dst = dst[:dstLen-fields[i].KeyLen-deep]
+				} else {
+					dst = append(dst, ',', '\n')
+				}
+			}
+			if i := len(dst); i != 0 && dst[i-1] == '\n' {
+				dst = dst[:i-2]
+			}
+			return dst, nil
 		}
-		was := 0
+	}
+	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		dst = append(dst, '{', '\n')
 		var err error
 		for i := range fields {
-			if was != 0 {
-				dst = append(dst, ',')
-			}
+			dst = append(dst, deepSpace1...)
 			dst = append(dst, fields[i].Key...)
 			dstLen := len(dst)
 			dst, err = fields[i].Encoder(dst, unsafe.Add(value, fields[i].Offset))
@@ -267,19 +303,70 @@ func structEncoder(deep uint, flags Flags, t reflect.Type, byPointer, embedded b
 				return dst, err
 			}
 			if len(dst) == dstLen {
-				dst = dst[:dstLen-fields[i].KeyLen-was]
+				dst = dst[:dstLen-fields[i].KeyLen-deep-1]
 			} else {
-				was = 1
+				dst = append(dst, ',', '\n')
 			}
 		}
-		if !embedded {
+		if i := len(dst) - 2; dst[i] == ',' {
+			dst = dst[:i]
+		}
+		dst = append(dst, '\n')
+		dst = append(dst, deepSpace0...)
+		dst = append(dst, '}')
+		return dst, nil
+	}
+}
+
+func structEncoderMinimal(fields []StructField, embedded bool) UnsafeEncoder {
+	if embedded {
+		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+			var err error
+			for i := range fields {
+				dst = append(dst, fields[i].Key...)
+				dstLen := len(dst)
+				dst, err = fields[i].Encoder(dst, unsafe.Add(value, fields[i].Offset))
+				if err != nil {
+					return dst, err
+				}
+				if len(dst) == dstLen {
+					dst = dst[:dstLen-fields[i].KeyLen]
+				} else {
+					dst = append(dst, ',')
+				}
+			}
+			if i := len(dst); i != 0 && dst[i-1] == ',' {
+				dst = dst[:i-1]
+			}
+			return dst, nil
+		}
+	}
+	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		dst = append(dst, '{')
+		var err error
+		for i := range fields {
+			dst = append(dst, fields[i].Key...)
+			dstLen := len(dst)
+			dst, err = fields[i].Encoder(dst, unsafe.Add(value, fields[i].Offset))
+			if err != nil {
+				return dst, err
+			}
+			if len(dst) == dstLen {
+				dst = dst[:dstLen-fields[i].KeyLen]
+			} else {
+				dst = append(dst, ',')
+			}
+		}
+		if i := len(dst) - 1; dst[i] == ',' {
+			dst[i] = '}'
+		} else {
 			dst = append(dst, '}')
 		}
 		return dst, nil
 	}
 }
 
-func pointerEncoder(deep uint, flags Flags, t reflect.Type, wasStruct, byPointer, embedded bool) UnsafeEncoder {
+func pointerEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPointer, embedded bool) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 	elemEncoder := createTypeEncoder(deep, flags, t, wasStruct, byPointer, embedded)

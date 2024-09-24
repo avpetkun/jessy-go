@@ -21,6 +21,7 @@ const (
 	EscapeHTML
 	ValidateString
 	ValidateTextMarshaller
+	PrettySpaces
 
 	// while encoding
 	OmitEmpty
