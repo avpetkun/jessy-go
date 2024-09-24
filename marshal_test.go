@@ -308,6 +308,63 @@ var expectedMarshalResult = `{"EmbedVpub":123,"EmbedVpriv":3145,"embed_v_ptr":78
 
 func TestMarshalAll(t *testing.T) {
 	{
+		data, err := Marshal(nil)
+		require.NoError(t, err)
+		require.Equal(t, `null`, string(data))
+	}
+
+	{
+		data, err := Marshal(struct{ M *RawMessage }{})
+		require.NoError(t, err)
+		require.Equal(t, `{"M":null}`, string(data))
+	}
+	{
+		data, err := Marshal(&struct{ M *RawMessage }{})
+		require.NoError(t, err)
+		require.Equal(t, `{"M":null}`, string(data))
+	}
+	{
+		data, err := Marshal(struct{ M RawMessage }{})
+		require.NoError(t, err)
+		require.Equal(t, `{"M":null}`, string(data))
+	}
+	{
+		data, err := Marshal(&struct{ M RawMessage }{})
+		require.NoError(t, err)
+		require.Equal(t, `{"M":null}`, string(data))
+	}
+
+	{
+		data, err := Marshal(&struct {
+			M RawMessage
+			X int
+		}{})
+		require.NoError(t, err)
+		require.Equal(t, `{"M":null,"X":0}`, string(data))
+	}
+
+	{
+		data, err := Marshal(struct{ Int int }{})
+		require.NoError(t, err)
+		require.Equal(t, `{"Int":0}`, string(data))
+	}
+	{
+		data, err := Marshal(&struct{ Int int }{})
+		require.NoError(t, err)
+		require.Equal(t, `{"Int":0}`, string(data))
+	}
+	{
+		data, err := Marshal(struct{ Int *int }{})
+		require.NoError(t, err)
+		require.Equal(t, `{"Int":null}`, string(data))
+	}
+	{
+		data, err := Marshal(&struct{ Int *int }{})
+		require.NoError(t, err)
+		require.Equal(t, `{"Int":null}`, string(data))
+	}
+
+	{
 		rawNil := json.RawMessage(nil)
 		str := &struct{ M *json.RawMessage }{&rawNil}
 		println("str", str, "M", str.M)
@@ -426,8 +483,7 @@ func TestMarshalAll(t *testing.T) {
 
 	data, err := Marshal(struct{ M *json.RawMessage }{})
 	require.NoError(t, err)
-	// TODO: require.Equal(t, `{"M":null}`, string(data))
-	require.Equal(t, `null`, string(data))
+	require.Equal(t, `{"M":null}`, string(data))
 	println("------")
 
 	data, err = Marshal(json.RawMessage("123"))

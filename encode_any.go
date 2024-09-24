@@ -13,7 +13,7 @@ import (
 
 func encodeAny(dst []byte, value any, flags Flags) ([]byte, error) {
 	eface := zgo.UnpackEface(value)
-	if eface.Value == nil {
+	if eface.Type == nil {
 		return append(dst, 'n', 'u', 'l', 'l'), nil
 	}
 	return getTypeEncoder(eface.Type, flags)(dst, eface.Value)
@@ -152,6 +152,7 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPoint
 type StructField struct {
 	Key     string
 	KeyLen  int
+	Null    string
 	Offset  uintptr
 	Encoder UnsafeEncoder
 }
@@ -242,6 +243,12 @@ func structEncoder(deep int, flags Flags, t reflect.Type, byPointer, embedded bo
 		return fields[i].Key < fields[j].Key
 	})
 
+	if fields[0].KeyLen == 0 {
+		fields[0].Null = "null"
+	} else {
+		fields[0].Null = "{" + fields[0].Key + "null}"
+	}
+
 	if prettySpaces {
 		return structEncoderPretty(deep, fields, embedded)
 	}
@@ -256,6 +263,9 @@ func structEncoderPretty(deep int, fields []StructField, embedded bool) UnsafeEn
 	deepSpace1 := strings.Repeat("\t", deep+1)
 	if embedded {
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+			if value == nil {
+				return append(dst, fields[0].Null...), nil
+			}
 			var err error
 			for i := range fields {
 				dst = append(dst, deepSpace0...)
@@ -278,6 +288,9 @@ func structEncoderPretty(deep int, fields []StructField, embedded bool) UnsafeEn
 		}
 	}
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		if value == nil {
+			return append(dst, fields[0].Null...), nil
+		}
 		dst = append(dst, '{', '\n')
 		var err error
 		for i := range fields {
@@ -307,6 +320,9 @@ func structEncoderPretty(deep int, fields []StructField, embedded bool) UnsafeEn
 func structEncoderMinimal(fields []StructField, embedded bool) UnsafeEncoder {
 	if embedded {
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+			if value == nil {
+				return append(dst, fields[0].Null...), nil
+			}
 			var err error
 			for i := range fields {
 				dst = append(dst, fields[i].Key...)
@@ -328,6 +344,9 @@ func structEncoderMinimal(fields []StructField, embedded bool) UnsafeEncoder {
 		}
 	}
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		if value == nil {
+			return append(dst, fields[0].Null...), nil
+		}
 		dst = append(dst, '{')
 		var err error
 		for i := range fields {
