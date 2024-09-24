@@ -14,6 +14,8 @@ import (
 )
 
 type Struct struct {
+	*Struct
+
 	Bool1 bool
 	Bool2 bool
 

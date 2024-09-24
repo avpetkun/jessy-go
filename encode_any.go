@@ -374,7 +374,7 @@ func pointerEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPointer,
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = *(*unsafe.Pointer)(v)
 		if v == nil {
-			if omitEmpty {
+			if omitEmpty || embedded {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
