@@ -170,7 +170,8 @@ func structEncoder(deep int, flags Flags, t reflect.Type, byPointer, embedded bo
 	for i := range fieldsCount {
 		f := t.Field(i)
 
-		if !f.Anonymous && !f.IsExported() {
+		embedded := f.Anonymous && tReallyStruct(f.Type)
+		if !embedded && !f.IsExported() {
 			continue
 		}
 
@@ -212,12 +213,12 @@ func structEncoder(deep int, flags Flags, t reflect.Type, byPointer, embedded bo
 		const wasStruct = true
 		var fieldEncoder UnsafeEncoder
 		if makeUnpack {
-			fieldEncoder = pointerEncoder(deep, fieldFlags, ft, wasStruct, byPointer, f.Anonymous)
+			fieldEncoder = pointerEncoder(deep, fieldFlags, ft, wasStruct, byPointer, embedded)
 		} else {
-			fieldEncoder = createTypeEncoder(deep, fieldFlags, ft, wasStruct, byPointer, f.Anonymous)
+			fieldEncoder = createTypeEncoder(deep, fieldFlags, ft, wasStruct, byPointer, embedded)
 		}
 
-		if f.Anonymous {
+		if embedded {
 			fields = append(fields, StructField{
 				KeyLen:  0,
 				Offset:  f.Offset,

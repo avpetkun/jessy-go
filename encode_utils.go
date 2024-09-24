@@ -34,3 +34,10 @@ func tImplementsAny(t reflect.Type) bool {
 	}
 	return true
 }
+
+func tReallyStruct(t reflect.Type) bool {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t.Kind() == reflect.Struct
+}
