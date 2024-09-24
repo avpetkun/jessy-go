@@ -410,7 +410,7 @@ func float32Encoder(flags Flags) UnsafeEncoder {
 					return dst, nil
 				}
 				dst = append(dst, '"')
-				dst = strconv.AppendFloat(dst, float64(n), 'f', -1, 32)
+				dst = appendFloat32(dst, float64(n))
 				dst = append(dst, '"')
 				return dst, nil
 			}
@@ -421,7 +421,7 @@ func float32Encoder(flags Flags) UnsafeEncoder {
 				return append(dst, '"', '0', '"'), nil
 			}
 			dst = append(dst, '"')
-			dst = strconv.AppendFloat(dst, float64(n), 'f', -1, 32)
+			dst = appendFloat32(dst, float64(n))
 			dst = append(dst, '"')
 			return dst, nil
 		}
@@ -433,7 +433,7 @@ func float32Encoder(flags Flags) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return strconv.AppendFloat(dst, float64(n), 'f', -1, 32), nil
+			return appendFloat32(dst, float64(n)), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
@@ -441,7 +441,7 @@ func float32Encoder(flags Flags) UnsafeEncoder {
 		if n == 0 {
 			return append(dst, '0'), nil
 		}
-		return strconv.AppendFloat(dst, float64(n), 'f', -1, 32), nil
+		return appendFloat32(dst, float64(n)), nil
 	}
 }
 
@@ -457,7 +457,7 @@ func float64Encoder(flags Flags) UnsafeEncoder {
 					return dst, nil
 				}
 				dst = append(dst, '"')
-				dst = strconv.AppendFloat(dst, n, 'f', -1, 64)
+				dst = appendFloat64(dst, n)
 				dst = append(dst, '"')
 				return dst, nil
 			}
@@ -468,7 +468,7 @@ func float64Encoder(flags Flags) UnsafeEncoder {
 				return append(dst, '"', '0', '"'), nil
 			}
 			dst = append(dst, '"')
-			dst = strconv.AppendFloat(dst, n, 'f', -1, 64)
+			dst = appendFloat64(dst, n)
 			dst = append(dst, '"')
 			return dst, nil
 		}
@@ -480,7 +480,7 @@ func float64Encoder(flags Flags) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
-			return strconv.AppendFloat(dst, n, 'f', -1, 64), nil
+			return appendFloat64(dst, n), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
@@ -488,6 +488,44 @@ func float64Encoder(flags Flags) UnsafeEncoder {
 		if n == 0 {
 			return append(dst, '0'), nil
 		}
-		return strconv.AppendFloat(dst, n, 'f', -1, 64), nil
+		return appendFloat64(dst, n), nil
 	}
+}
+
+// from encoding/json
+func appendFloat32(b []byte, f float64) []byte {
+	abs := math.Abs(f)
+	fmt := byte('f')
+	if abs != 0 && (float32(abs) < 1e-6 || float32(abs) >= 1e21) {
+		fmt = 'e'
+	}
+	b = strconv.AppendFloat(b, f, fmt, -1, 32)
+	if fmt == 'e' {
+		// clean up e-09 to e-9
+		n := len(b)
+		if n >= 4 && b[n-4] == 'e' && b[n-3] == '-' && b[n-2] == '0' {
+			b[n-2] = b[n-1]
+			b = b[:n-1]
+		}
+	}
+	return b
+}
+
+// from encoding/json
+func appendFloat64(b []byte, f float64) []byte {
+	abs := math.Abs(f)
+	fmt := byte('f')
+	if abs != 0 && (abs < 1e-6 || abs >= 1e21) {
+		fmt = 'e'
+	}
+	b = strconv.AppendFloat(b, f, fmt, -1, 64)
+	if fmt == 'e' {
+		// clean up e-09 to e-9
+		n := len(b)
+		if n >= 4 && b[n-4] == 'e' && b[n-3] == '-' && b[n-2] == '0' {
+			b[n-2] = b[n-1]
+			b = b[:n-1]
+		}
+	}
+	return b
 }
