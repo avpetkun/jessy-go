@@ -317,6 +317,33 @@ func TestMarshalAll(t *testing.T) {
 		println("------")
 	}
 	{
+		data, err := Marshal([]string{"a", "b"})
+		require.NoError(t, err)
+		require.Equal(t, `["a","b"]`, string(data))
+		println("------")
+	}
+	{
+		data, err := Marshal(&[]string{"a", "b"})
+		require.NoError(t, err)
+		require.Equal(t, `["a","b"]`, string(data))
+		println("------")
+	}
+	{
+		rawNil := json.RawMessage(nil)
+		data, err := Marshal(struct{ V *[]any }{&[]any{rawNil}})
+		require.NoError(t, err)
+		require.Equal(t, `{"V":[null]}`, string(data))
+		println("------")
+	}
+	{
+		rawNil := json.RawMessage(nil)
+		val := []any{rawNil}
+		data, err := Marshal(&val)
+		require.NoError(t, err)
+		require.Equal(t, `[null]`, string(data))
+		println("------")
+	}
+	{
 		rawText := json.RawMessage([]byte(`"123"`))
 		str := struct{ M *json.RawMessage }{&rawText}
 		println("str", "M", str.M, rawText)

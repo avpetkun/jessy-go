@@ -371,6 +371,17 @@ func pointerEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPointer,
 	flags = flags.excludes(OmitEmpty)
 	elemEncoder := createTypeEncoder(deep, flags, t, wasStruct, byPointer, embedded)
 
+	if t.Kind() == reflect.Slice && !wasStruct {
+		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+			if v == nil {
+				if omitEmpty || embedded {
+					return dst, nil
+				}
+				return append(dst, 'n', 'u', 'l', 'l'), nil
+			}
+			return elemEncoder(dst, v)
+		}
+	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		v = *(*unsafe.Pointer)(v)
 		if v == nil {
