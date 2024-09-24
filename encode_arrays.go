@@ -11,7 +11,7 @@ import (
 
 func sliceEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
 	elem := t.Elem()
-	if elem.Kind() == reflect.Uint8 {
+	if elem.Kind() == reflect.Uint8 && !tImplementsAny(elem) {
 		return sliceBase64Encoder(flags)
 	}
 
@@ -110,7 +110,7 @@ func sliceBase64Encoder(flags Flags) UnsafeEncoder {
 func arrayEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
 	arrayLen := uint(t.Len())
 	elem := t.Elem()
-	if elem.Kind() == reflect.Uint8 {
+	if elem.Kind() == reflect.Uint8 && !tImplementsAny(elem) {
 		return arrayByteHexEncoder(arrayLen, flags)
 	}
 

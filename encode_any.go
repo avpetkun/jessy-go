@@ -34,21 +34,6 @@ func nopEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
 	return dst, nil
 }
 
-func tReallyImplements(t, inter reflect.Type) bool {
-	if t.Implements(inter) {
-		if t.Kind() == reflect.Struct {
-			for i := range t.NumField() {
-				f := t.Field(i)
-				if f.Anonymous && f.Type.Implements(inter) {
-					return false
-				}
-			}
-		}
-		return true
-	}
-	return false
-}
-
 func createDirectTypeEncoder(flags Flags, t reflect.Type) UnsafeEncoder {
 	tp := reflect.PointerTo(t)
 	switch {
