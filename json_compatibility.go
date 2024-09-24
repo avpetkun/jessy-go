@@ -6,14 +6,6 @@ import (
 	"io"
 )
 
-// A Number represents a JSON number literal.
-type Number = json.Number
-
-// RawMessage is a raw encoded JSON value.
-// It implements [Marshaler] and [Unmarshaler] and can
-// be used to delay JSON decoding or precompute a JSON encoding.
-type RawMessage = json.RawMessage
-
 // Indent appends to dst an indented form of the JSON-encoded src.
 // Each element in a JSON object or array begins on a new,
 // indented line beginning with prefix followed by one or more

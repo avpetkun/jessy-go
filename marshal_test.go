@@ -481,6 +481,12 @@ func TestMarshalAll(t *testing.T) {
 		println("------")
 	}
 
+	{
+		data, err := Marshal(json.RawMessage([]byte{}))
+		require.NoError(t, err)
+		require.Equal(t, ``, string(data))
+	}
+
 	data, err := Marshal(struct{ M *json.RawMessage }{})
 	require.NoError(t, err)
 	require.Equal(t, `{"M":null}`, string(data))
