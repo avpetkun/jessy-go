@@ -1,6 +1,7 @@
 package jessy
 
 import (
+	"errors"
 	"math"
 	"strconv"
 	"unsafe"
@@ -405,23 +406,29 @@ func float32Encoder(flags Flags) UnsafeEncoder {
 	if needQuotes {
 		if omitEmpty {
 			return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-				n := *(*float32)(v)
-				if n == 0 && omitEmpty {
+				n := float64(*(*float32)(v))
+				if n == 0 {
 					return dst, nil
 				}
+				if math.IsNaN(n) || math.IsInf(n, 0) {
+					return dst, errFloatNum
+				}
 				dst = append(dst, '"')
-				dst = appendFloat32(dst, float64(n))
+				dst = appendFloat32(dst, n)
 				dst = append(dst, '"')
 				return dst, nil
 			}
 		}
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-			n := *(*float32)(v)
+			n := float64(*(*float32)(v))
 			if n == 0 {
 				return append(dst, '"', '0', '"'), nil
 			}
+			if math.IsNaN(n) || math.IsInf(n, 0) {
+				return dst, errFloatNum
+			}
 			dst = append(dst, '"')
-			dst = appendFloat32(dst, float64(n))
+			dst = appendFloat32(dst, n)
 			dst = append(dst, '"')
 			return dst, nil
 		}
@@ -429,19 +436,25 @@ func float32Encoder(flags Flags) UnsafeEncoder {
 
 	if omitEmpty {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-			n := *(*float32)(v)
+			n := float64(*(*float32)(v))
 			if n == 0 {
 				return dst, nil
 			}
-			return appendFloat32(dst, float64(n)), nil
+			if math.IsNaN(n) || math.IsInf(n, 0) {
+				return dst, errFloatNum
+			}
+			return appendFloat32(dst, n), nil
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		n := *(*float32)(v)
+		n := float64(*(*float32)(v))
 		if n == 0 {
 			return append(dst, '0'), nil
 		}
-		return appendFloat32(dst, float64(n)), nil
+		if math.IsNaN(n) || math.IsInf(n, 0) {
+			return dst, errFloatNum
+		}
+		return appendFloat32(dst, n), nil
 	}
 }
 
@@ -453,8 +466,11 @@ func float64Encoder(flags Flags) UnsafeEncoder {
 		if omitEmpty {
 			return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 				n := *(*float64)(v)
-				if n == 0 && omitEmpty {
+				if n == 0 {
 					return dst, nil
+				}
+				if math.IsNaN(n) || math.IsInf(n, 0) {
+					return dst, errFloatNum
 				}
 				dst = append(dst, '"')
 				dst = appendFloat64(dst, n)
@@ -466,6 +482,9 @@ func float64Encoder(flags Flags) UnsafeEncoder {
 			n := *(*float64)(v)
 			if n == 0 {
 				return append(dst, '"', '0', '"'), nil
+			}
+			if math.IsNaN(n) || math.IsInf(n, 0) {
+				return dst, errFloatNum
 			}
 			dst = append(dst, '"')
 			dst = appendFloat64(dst, n)
@@ -480,6 +499,9 @@ func float64Encoder(flags Flags) UnsafeEncoder {
 			if n == 0 {
 				return dst, nil
 			}
+			if math.IsNaN(n) || math.IsInf(n, 0) {
+				return dst, errFloatNum
+			}
 			return appendFloat64(dst, n), nil
 		}
 	}
@@ -488,9 +510,14 @@ func float64Encoder(flags Flags) UnsafeEncoder {
 		if n == 0 {
 			return append(dst, '0'), nil
 		}
+		if math.IsNaN(n) || math.IsInf(n, 0) {
+			return dst, errFloatNum
+		}
 		return appendFloat64(dst, n), nil
 	}
 }
+
+var errFloatNum = errors.New("float number is NaN or +-Inf")
 
 // from encoding/json
 func appendFloat32(b []byte, f float64) []byte {
