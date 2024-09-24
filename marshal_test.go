@@ -525,6 +525,12 @@ func BenchmarkMarshal(b *testing.B) {
 	vv := getTestStruct()
 	value := &vv
 
+	b.Run("jessy-hash", func(b *testing.B) {
+		b.ResetTimer()
+		for range b.N {
+			_, _ = Hash(value)
+		}
+	})
 	b.Run("jessy-fast", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
