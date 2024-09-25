@@ -5,10 +5,6 @@ import (
 	"unsafe"
 )
 
-//go:linkname ifaceIndir reflect.ifaceIndir
-//go:noescape
-func ifaceIndir(*Type) bool
-
 type Value struct {
 	Type *Type
 	VPtr unsafe.Pointer
@@ -22,7 +18,7 @@ func (v Value) Native() reflect.Value {
 func NewValueFromRType(rType reflect.Type, valuePtr unsafe.Pointer) Value {
 	typ := NewTypeFromRType(rType)
 	flag := uintptr(rType.Kind())
-	if ifaceIndir(typ) {
+	if typ.IfaceIndir() {
 		flag |= 1 << 7
 	}
 	return Value{typ, valuePtr, flag}
@@ -48,7 +44,7 @@ func NewAnyInterfacerFromRType(rType reflect.Type) func(valPtr unsafe.Pointer) a
 	return func(valPtr unsafe.Pointer) (i any) {
 		eface := (*EmptyInterface)(unsafe.Pointer(&i))
 		eface.Type = valType
-		eface.Value = valPtr
+		eface.Data = valPtr
 		return
 	}
 }
@@ -64,7 +60,7 @@ func NewInterfacerFromRType[I any](rType reflect.Type) func(valPtr unsafe.Pointe
 	return func(valPtr unsafe.Pointer) (i I) {
 		eface := (*EmptyInterface)(unsafe.Pointer(&i))
 		eface.Type = valType
-		eface.Value = valPtr
+		eface.Data = valPtr
 		return
 	}
 }
