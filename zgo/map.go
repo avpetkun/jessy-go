@@ -18,17 +18,17 @@ func mapIterNext(it *MapIterator)
 func NewMapIteratorFromValue(value any) (it *MapIterator, count int) {
 	it = mapIteratorPool.Get().(*MapIterator)
 	eface := *(*EmptyInterface)(unsafe.Pointer(&value))
-	if eface.Type == nil || eface.Value == nil {
+	if eface.Type == nil || eface.Data == nil {
 		return
 	}
-	hmap := (*Map)(eface.Value)
+	hmap := (*Map)(eface.Data)
 	mapIterInitType(eface.Type, hmap, it)
 	count = hmap.Count
 	return
 }
 
 func NewMapIteratorFromRType(rType reflect.Type) (getIterator func(valuePtr unsafe.Pointer) (it *MapIterator, count int)) {
-	mapType := UnpackEface(rType).Value
+	mapType := UnpackEface(rType).Data
 	return func(value unsafe.Pointer) (it *MapIterator, count int) {
 		if value == nil {
 			return

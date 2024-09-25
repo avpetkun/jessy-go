@@ -13,11 +13,11 @@ import (
 
 func Hash(value any) (hashSum uint64, err error) {
 	eface := zgo.UnpackEface(value)
-	if eface.Value == nil {
+	if eface.Data == nil {
 		return 0, nil
 	}
 	h := newHashSum64()
-	err = getTypeHashEncoder(eface.Type)(&h, eface.Value)
+	err = getTypeHashEncoder(eface.Type)(&h, eface.Data)
 	hashSum = h.Sum()
 	return
 }
@@ -89,11 +89,11 @@ func createTypeHashEncoder(deep int, t reflect.Type, wasStruct, byPointer bool) 
 	case reflect.Interface:
 		return func(h *hashSum64, value unsafe.Pointer) error {
 			eface := (*zgo.EmptyInterface)(value)
-			if eface.Value == nil {
+			if eface.Data == nil {
 				h.Byte(0)
 				return nil
 			}
-			return getTypeHashEncoder(eface.Type)(h, eface.Value)
+			return getTypeHashEncoder(eface.Type)(h, eface.Data)
 		}
 	}
 

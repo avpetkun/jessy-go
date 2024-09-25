@@ -32,7 +32,7 @@ func encodeAny(dst []byte, value any, flags Flags) ([]byte, error) {
 	if eface.Type == nil {
 		return append(dst, 'n', 'u', 'l', 'l'), nil
 	}
-	return getTypeEncoder(eface.Type, flags)(dst, eface.Value)
+	return getTypeEncoder(eface.Type, flags)(dst, eface.Data)
 }
 
 var encodersTypesCache [encodeFlagsLen]sync.Map
@@ -162,10 +162,10 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, wasStruct, byPoint
 	case reflect.Interface:
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			eface := (*zgo.EmptyInterface)(value)
-			if eface.Value == nil {
+			if eface.Data == nil {
 				return append(dst, 'n', 'u', 'l', 'l'), nil
 			}
-			return getTypeEncoder(eface.Type, flags)(dst, eface.Value)
+			return getTypeEncoder(eface.Type, flags)(dst, eface.Data)
 		}
 	}
 
