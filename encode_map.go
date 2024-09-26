@@ -48,8 +48,8 @@ func mapEncoderUnsorted(deep, indent uint32, t reflect.Type, flags Flags) Unsafe
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
-	encodeKey := createItemTypeEncoder(deep, indent, (flags | NeedQuotes), t.Key())
-	encodeVal := createItemTypeEncoder(deep, indent, flags, t.Elem())
+	encodeKey := createItemTypeEncoder(deep, indent+1, (flags | NeedQuotes), t.Key())
+	encodeVal := createItemTypeEncoder(deep, indent+1, flags, t.Elem())
 	getIterator := zgo.NewMapIteratorFromRType(t)
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
@@ -122,8 +122,8 @@ func mapEncoderSorted(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEn
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
-	encodeKey := createItemTypeEncoder(deep, indent, (flags | NeedQuotes), t.Key())
-	encodeVal := createItemTypeEncoder(deep, indent, flags, t.Elem())
+	encodeKey := createItemTypeEncoder(deep, indent+1, (flags | NeedQuotes), t.Key())
+	encodeVal := createItemTypeEncoder(deep, indent+1, flags, t.Elem())
 	getIterator := zgo.NewMapIteratorFromRType(t)
 
 	bufPool := sync.Pool{New: func() any { return new(mapSortBuf) }}
@@ -217,8 +217,8 @@ func mapEncoderUnsortedPretty(deep, indent uint32, t reflect.Type, flags Flags) 
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
-	encodeKey := createItemTypeEncoder(deep, indent, (flags | NeedQuotes), t.Key())
-	encodeVal := createItemTypeEncoder(deep, indent, flags, t.Elem())
+	encodeKey := createItemTypeEncoder(deep, indent+1, (flags | NeedQuotes), t.Key())
+	encodeVal := createItemTypeEncoder(deep, indent+1, flags, t.Elem())
 	getIterator := zgo.NewMapIteratorFromRType(t)
 
 	deepSpaces0 := getIndent(indent)
@@ -287,8 +287,8 @@ func mapEncoderSortedPretty(deep, indent uint32, t reflect.Type, flags Flags) Un
 	omitEmpty := flags.Has(OmitEmpty)
 	flags = flags.excludes(OmitEmpty)
 
-	encodeKey := createItemTypeEncoder(deep, indent, (flags | NeedQuotes), t.Key())
-	encodeVal := createItemTypeEncoder(deep, indent, flags, t.Elem())
+	encodeKey := createItemTypeEncoder(deep, indent+1, (flags | NeedQuotes), t.Key())
+	encodeVal := createItemTypeEncoder(deep, indent+1, flags, t.Elem())
 	getIterator := zgo.NewMapIteratorFromRType(t)
 
 	deepSpaces0 := getIndent(indent)
