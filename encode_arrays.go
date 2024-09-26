@@ -110,9 +110,6 @@ func sliceBase64Encoder(flags Flags) UnsafeEncoder {
 func arrayEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
 	arrayLen := uint(t.Len())
 	elem := t.Elem()
-	if elem.Kind() == reflect.Uint8 && !tImplementsAny(elem) {
-		return arrayByteHexEncoder(arrayLen, flags)
-	}
 
 	elemSize := uint(elem.Size())
 	elemEncoder := createItemTypeEncoder(deep, flags.excludes(OmitEmpty), elem)
@@ -139,27 +136,5 @@ func arrayEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
 			dst = append(dst, ']')
 		}
 		return dst, nil
-	}
-}
-
-func arrayByteHexEncoder(arrayLen uint, flags Flags) UnsafeEncoder {
-	omitEmpty := flags.Has(OmitEmpty)
-
-	if omitEmpty {
-		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-			data := zgo.NewSliceBytes(v, arrayLen, arrayLen)
-			var mask byte
-			for i := range data {
-				mask |= data[i]
-			}
-			if mask == 0 {
-				return dst, nil
-			}
-			return zstr.AppendHexString(dst, data), nil
-		}
-	}
-	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		data := zgo.NewSliceBytes(v, arrayLen, arrayLen)
-		return zstr.AppendHexString(dst, data), nil
 	}
 }
