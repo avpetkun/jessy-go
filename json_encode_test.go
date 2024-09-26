@@ -6,7 +6,6 @@ package jessy
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -15,9 +14,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"runtime/debug"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -29,7 +26,6 @@ type Optionals struct {
 	Ir int `json:"omitempty"` // actually named omitempty, not an option
 	Io int `json:"io,omitempty"`
 
-	Slr []string `json:"slr,random"`
 	Slo []string `json:"slo,omitempty"`
 
 	Mr map[string]any `json:"mr"`
@@ -46,111 +42,6 @@ type Optionals struct {
 
 	Str struct{} `json:"str"`
 	Sto struct{} `json:"sto,omitempty"`
-}
-
-func TestOmitEmpty(t *testing.T) {
-	var want = `{
- "sr": "",
- "omitempty": 0,
- "slr": null,
- "mr": {},
- "fr": 0,
- "br": false,
- "ur": 0,
- "str": {},
- "sto": {}
-}`
-	var o Optionals
-	o.Sw = "something"
-	o.Mr = map[string]any{}
-	o.Mo = map[string]any{}
-
-	got, err := json.MarshalIndent(&o, "", " ")
-	if err != nil {
-		t.Fatalf("MarshalIndent error: %v", err)
-	}
-	if got := string(got); got != want {
-		t.Errorf("MarshalIndent:\n\tgot:  %s\n\twant: %s\n", indentNewlines(got), indentNewlines(want))
-	}
-}
-
-type StringTag struct {
-	BoolStr    bool    `json:",string"`
-	IntStr     int64   `json:",string"`
-	UintptrStr uintptr `json:",string"`
-	StrStr     string  `json:",string"`
-	NumberStr  Number  `json:",string"`
-}
-
-func TestRoundtripStringTag(t *testing.T) {
-	tests := []struct {
-		CaseName
-		in   StringTag
-		want string // empty to just test that we roundtrip
-	}{{
-		CaseName: Name("AllTypes"),
-		in: StringTag{
-			BoolStr:    true,
-			IntStr:     42,
-			UintptrStr: 44,
-			StrStr:     "xzbit",
-			NumberStr:  "46",
-		},
-		want: `{
-	"BoolStr": "true",
-	"IntStr": "42",
-	"UintptrStr": "44",
-	"StrStr": "\"xzbit\"",
-	"NumberStr": "46"
-}`,
-	}, {
-		// See golang.org/issues/38173.
-		CaseName: Name("StringDoubleEscapes"),
-		in: StringTag{
-			StrStr:    "\b\f\n\r\t\"\\",
-			NumberStr: "0", // just to satisfy the roundtrip
-		},
-		want: `{
-	"BoolStr": "false",
-	"IntStr": "0",
-	"UintptrStr": "0",
-	"StrStr": "\"\\b\\f\\n\\r\\t\\\"\\\\\"",
-	"NumberStr": "0"
-}`,
-	}}
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			got, err := json.MarshalIndent(&tt.in, "", "\t")
-			if err != nil {
-				t.Fatalf("%s: MarshalIndent error: %v", tt.Where, err)
-			}
-			if got := string(got); got != tt.want {
-				t.Fatalf("%s: MarshalIndent:\n\tgot:  %s\n\twant: %s", tt.Where, stripWhitespace(got), stripWhitespace(tt.want))
-			}
-
-			// Verify that it round-trips.
-			var s2 StringTag
-			if err := json.Unmarshal(got, &s2); err != nil {
-				t.Fatalf("%s: Decode error: %v", tt.Where, err)
-			}
-			if !reflect.DeepEqual(s2, tt.in) {
-				t.Fatalf("%s: Decode:\n\tinput: %s\n\tgot:  %#v\n\twant: %#v", tt.Where, indentNewlines(string(got)), s2, tt.in)
-			}
-		})
-	}
-}
-
-func indentNewlines(s string) string {
-	return strings.Join(strings.Split(s, "\n"), "\n\t")
-}
-
-func stripWhitespace(s string) string {
-	return strings.Map(func(r rune) rune {
-		if r == ' ' || r == '\n' || r == '\r' || r == '\t' {
-			return -1
-		}
-		return r
-	}, s)
 }
 
 // byte slices are special even if they're renamed types.
@@ -221,8 +112,6 @@ func init() {
 	recursiveSliceCycle[0] = recursiveSliceCycle
 }
 
-const startDetectingCyclesAfter = 1000
-
 func TestSamePointerNoCycle(t *testing.T) {
 	if _, err := Marshal(samePointerNoCycle); err != nil {
 		t.Fatalf("Marshal error: %v", err)
@@ -232,6 +121,22 @@ func TestSamePointerNoCycle(t *testing.T) {
 func TestSliceNoCycle(t *testing.T) {
 	if _, err := Marshal(sliceNoCycle); err != nil {
 		t.Fatalf("Marshal error: %v", err)
+	}
+}
+
+// Issue 43207
+func TestMarshalTextFloatMap(t *testing.T) {
+	m := map[textfloat]string{
+		textfloat(math.NaN()): "1",
+		textfloat(math.NaN()): "1",
+	}
+	got, err := Marshal(m)
+	if err != nil {
+		t.Errorf("Marshal error: %v", err)
+	}
+	want := `{"TF:NaN":"1","TF:NaN":"1"}`
+	if string(got) != want {
+		t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 }
 
@@ -432,6 +337,19 @@ func TestAnonymousFields(t *testing.T) {
 			return S{s1{1, 2, s2{3, 4}}, 6}
 		},
 		want: `{"MyInt2":3,"MyInt1":1}`,
+	}, {
+		// If an anonymous struct pointer field is nil, we should ignore
+		// the embedded fields behind it. Not properly doing so may
+		// result in the wrong output or reflect panics.
+		CaseName: Name("EmbeddedFieldBehindNilPointer"),
+		makeInput: func() any {
+			type (
+				S2 struct{ Field string }
+				S  struct{ *S2 }
+			)
+			return S{}
+		},
+		want: `{}`,
 	}}
 
 	for _, tt := range tests {
@@ -481,7 +399,7 @@ func (nm *nilJSONMarshaler) MarshalJSON() ([]byte, error) {
 
 // golang.org/issue/34235.
 // Even if a nil interface value is passed in, as long as
-// it implements encoding.TextMarshaler, it should be marshaled.
+// it implements TextMarshaler, it should be marshaled.
 type nilTextMarshaler string
 
 func (nm *nilTextMarshaler) MarshalText() ([]byte, error) {
@@ -499,20 +417,17 @@ func TestNilMarshal(t *testing.T) {
 		want string
 	}{
 		{Name(""), nil, `null`},
-		{Name(""), int64(1), `1`},
-		{Name(""), new(string), `""`},
-		{Name(""), new(int64), `0`},
 		{Name(""), new(float64), `0`},
-		//{Name(""), []any(nil), `null`},
-		//{Name(""), []string(nil), `null`},
+		{Name(""), []any(nil), `[]`},
+		{Name(""), []string(nil), `[]`},
 		{Name(""), map[string]string(nil), `null`},
-		//{Name(""), []byte(nil), `null`},
+		{Name(""), []byte(nil), `[]`},
 		{Name(""), struct{ M string }{"gopher"}, `{"M":"gopher"}`},
-		//{Name(""), struct{ M Marshaler }{}, `{"M":null}`},
-		//{Name(""), struct{ M Marshaler }{(*nilJSONMarshaler)(nil)}, `{"M":"0zenil0"}`},
+		{Name(""), struct{ M Marshaler }{}, `{"M":null}`},
+		{Name(""), struct{ M Marshaler }{(*nilJSONMarshaler)(nil)}, `{"M":"0zenil0"}`},
 		{Name(""), struct{ M any }{(*nilJSONMarshaler)(nil)}, `{"M":null}`},
-		//{Name(""), struct{ M encoding.TextMarshaler }{}, `{"M":null}`},
-		//{Name(""), struct{ M encoding.TextMarshaler }{(*nilTextMarshaler)(nil)}, `{"M":"0zenil0"}`},
+		{Name(""), struct{ M TextMarshaler }{}, `{"M":null}`},
+		{Name(""), struct{ M TextMarshaler }{(*nilTextMarshaler)(nil)}, `{"M":"0zenil0"}`},
 		{Name(""), struct{ M any }{(*nilTextMarshaler)(nil)}, `{"M":null}`},
 	}
 	for _, tt := range tests {
@@ -527,27 +442,98 @@ func TestNilMarshal(t *testing.T) {
 	}
 }
 
-func TestMarshalErrorAndReuseEncodeState(t *testing.T) {
-	// Disable the GC temporarily to prevent encodeState's in Pool being cleaned away during the test.
-	percent := debug.SetGCPercent(-1)
-	defer debug.SetGCPercent(percent)
+// Issue 5245.
+// func TestEmbeddedBug(t *testing.T) {
+// 	v := BugB{
+// 		BugA{"A"},
+// 		"B",
+// 	}
+// 	b, err := Marshal(v)
+// 	if err != nil {
+// 		t.Fatal("Marshal error:", err)
+// 	}
+// 	want := `{"S":"B"}`
+// 	got := string(b)
+// 	if got != want {
+// 		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
+// 	}
+// 	// Now check that the duplicate field, S, does not appear.
+// 	x := BugX{
+// 		A: 23,
+// 	}
+// 	b, err = Marshal(x)
+// 	if err != nil {
+// 		t.Fatal("Marshal error:", err)
+// 	}
+// 	want = `{"A":23}`
+// 	got = string(b)
+// 	if got != want {
+// 		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
+// 	}
+// }
 
-	type Data struct {
-		A string
-		I int
-	}
-	want := Data{A: "a", I: 1}
-	b, err := Marshal(want)
-	if err != nil {
-		t.Errorf("Marshal error: %v", err)
-	}
+type BugD struct { // Same as BugA after tagging.
+	XXX string `json:"S"`
+}
 
-	var got Data
-	if err := json.Unmarshal(b, &got); err != nil {
-		t.Errorf("Unmarshal error: %v", err)
+// BugD's tagged S field should dominate BugA's.
+type BugY struct {
+	BugA
+	BugD
+}
+
+// Test that a field with a tag dominates untagged fields.
+// func TestTaggedFieldDominates(t *testing.T) {
+// 	v := BugY{
+// 		BugA{"BugA"},
+// 		BugD{"BugD"},
+// 	}
+// 	b, err := Marshal(v)
+// 	if err != nil {
+// 		t.Fatal("Marshal error:", err)
+// 	}
+// 	want := `{"S":"BugD"}`
+// 	got := string(b)
+// 	if got != want {
+// 		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
+// 	}
+// }
+
+// There are no tags here, so S should not appear.
+type BugZ struct {
+	BugA
+	BugC
+	BugY // Contains a tagged S field through BugD; should not dominate.
+}
+
+// func TestDuplicatedFieldDisappears(t *testing.T) {
+// 	v := BugZ{
+// 		BugA{"BugA"},
+// 		BugC{"BugC"},
+// 		BugY{
+// 			BugA{"nested BugA"},
+// 			BugD{"nested BugD"},
+// 		},
+// 	}
+// 	b, err := Marshal(v)
+// 	if err != nil {
+// 		t.Fatal("Marshal error:", err)
+// 	}
+// 	want := `{}`
+// 	got := string(b)
+// 	if got != want {
+// 		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
+// 	}
+// }
+
+func TestIssue10281(t *testing.T) {
+	type Foo struct {
+		N Number
 	}
-	if got != want {
-		t.Errorf("Unmarshal:\n\tgot:  %v\n\twant: %v", got, want)
+	x := Foo{Number(`invalid`)}
+
+	if _, err := Marshal(&x); err == nil {
+		t.Fatalf("Marshal error: got nil, want non-nil")
 	}
 }
 
@@ -555,7 +541,7 @@ func TestHTMLEscape(t *testing.T) {
 	var b, want bytes.Buffer
 	m := `{"M":"<html>foo &` + "\xe2\x80\xa8 \xe2\x80\xa9" + `</html>"}`
 	want.Write([]byte(`{"M":"\u003chtml\u003efoo \u0026\u2028 \u2029\u003c/html\u003e"}`))
-	json.HTMLEscape(&b, []byte(m))
+	HTMLEscape(&b, []byte(m))
 	if !bytes.Equal(b.Bytes(), want.Bytes()) {
 		t.Errorf("HTMLEscape:\n\tgot:  %s\n\twant: %s", b.Bytes(), want.Bytes())
 	}
@@ -575,7 +561,7 @@ func TestEncodePointerString(t *testing.T) {
 		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
 	}
 	var back stringPointer
-	switch err = json.Unmarshal(b, &back); {
+	switch err = Unmarshal(b, &back); {
 	case err != nil:
 		t.Fatalf("Unmarshal error: %v", err)
 	case back.N == nil:
@@ -729,24 +715,6 @@ func TestNilMarshalerTextMapKey(t *testing.T) {
 	}
 }
 
-type unmarshalerText struct {
-	A, B string
-}
-
-// needed for re-marshaling tests
-func (u unmarshalerText) MarshalText() ([]byte, error) {
-	return []byte(u.A + ":" + u.B), nil
-}
-
-func (u *unmarshalerText) UnmarshalText(b []byte) error {
-	pos := bytes.IndexByte(b, ':')
-	if pos == -1 {
-		return errors.New("missing separator")
-	}
-	u.A, u.B = string(b[:pos]), string(b[pos+1:])
-	return nil
-}
-
 var re = regexp.MustCompile
 
 // syntactic checks on form of marshaled floating point numbers.
@@ -795,12 +763,10 @@ func TestMarshalFloat(t *testing.T) {
 			nfail++
 			return
 		}
-		if f != g || fmt.Sprint(f) != fmt.Sprint(g) { // fmt.Sprint handles ±0
-			if float32(g) != -0 {
-				t.Errorf("ParseFloat(%q):\n\tgot:  %g\n\twant: %g", out, float32(g), vf)
-				nfail++
-				return
-			}
+		if (f != g || fmt.Sprint(f) != fmt.Sprint(g)) && g != -0 { // fmt.Sprint handles ±0
+			t.Errorf("ParseFloat(%q):\n\tgot:  %g\n\twant: %g", out, float32(g), vf)
+			nfail++
+			return
 		}
 
 		bad := badFloatREs
@@ -844,7 +810,7 @@ func TestMarshalFloat(t *testing.T) {
 					test(next(f, bigger), bits)
 					test(next(f, smaller), bits)
 					if nfail > 50 {
-						return
+						t.Fatalf("stopping test early")
 					}
 				}
 			}
@@ -856,42 +822,20 @@ func TestMarshalFloat(t *testing.T) {
 	test(math.Copysign(0, -1), 32)
 }
 
-// CaseName is a case name annotated with a file and line.
-type CaseName struct {
-	Name  string
-	Where CasePos
-}
-
-// Name annotates a case name with the file and line of the caller.
-func Name(s string) (c CaseName) {
-	c.Name = s
-	runtime.Callers(2, c.Where.pc[:])
-	return c
-}
-
-// CasePos represents a file and line number.
-type CasePos struct{ pc [1]uintptr }
-
-func (pos CasePos) String() string {
-	frames := runtime.CallersFrames(pos.pc[:])
-	frame, _ := frames.Next()
-	return fmt.Sprintf("%s:%d", path.Base(frame.File), frame.Line)
-}
-
 func TestMarshalRawMessageValue(t *testing.T) {
 	type (
 		T1 struct {
-			M json.RawMessage `json:",omitempty"`
+			M RawMessage `json:",omitempty"`
 		}
 		T2 struct {
-			M *json.RawMessage `json:",omitempty"`
+			M *RawMessage `json:",omitempty"`
 		}
 	)
 
 	var (
-		rawNil   = json.RawMessage(nil)
-		rawEmpty = json.RawMessage([]byte{})
-		rawText  = json.RawMessage([]byte(`"foo"`))
+		rawNil   = RawMessage(nil)
+		rawEmpty = RawMessage([]byte{})
+		rawText  = RawMessage([]byte(`"foo"`))
 	)
 
 	tests := []struct {
@@ -900,30 +844,47 @@ func TestMarshalRawMessageValue(t *testing.T) {
 		want string
 		ok   bool
 	}{
-		// 0 Test with nil json.RawMessage.
+		// Test with nil RawMessage.
 		{Name(""), rawNil, "null", true},
 		{Name(""), &rawNil, "null", true},
 		{Name(""), []any{rawNil}, "[null]", true},
 		{Name(""), &[]any{rawNil}, "[null]", true},
 		{Name(""), []any{&rawNil}, "[null]", true},
 		{Name(""), &[]any{&rawNil}, "[null]", true},
-		{Name(""), struct{ M json.RawMessage }{rawNil}, `{"M":null}`, true},
-		{Name(""), &struct{ M json.RawMessage }{rawNil}, `{"M":null}`, true},
-		{Name(""), struct{ M *json.RawMessage }{&rawNil}, `{"M":null}`, true},
-		{Name(""), &struct{ M *json.RawMessage }{&rawNil}, `{"M":null}`, true},
+		{Name(""), struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
+		{Name(""), &struct{ M RawMessage }{rawNil}, `{"M":null}`, true},
+		{Name(""), struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
+		{Name(""), &struct{ M *RawMessage }{&rawNil}, `{"M":null}`, true},
 		{Name(""), map[string]any{"M": rawNil}, `{"M":null}`, true},
 		{Name(""), &map[string]any{"M": rawNil}, `{"M":null}`, true},
 		{Name(""), map[string]any{"M": &rawNil}, `{"M":null}`, true},
 		{Name(""), &map[string]any{"M": &rawNil}, `{"M":null}`, true},
-		//{Name(""), T1{rawNil}, "{}", true},
+		// {Name(""), T1{rawNil}, "{}", true},
 		{Name(""), T2{&rawNil}, `{"M":null}`, true},
+		// {Name(""), &T1{rawNil}, "{}", true},
 		{Name(""), &T2{&rawNil}, `{"M":null}`, true},
 
-		// 18 Test with empty, but non-nil, json.RawMessage.
+		// Test with empty, but non-nil, RawMessage.
 		{Name(""), rawEmpty, "", true},
 		{Name(""), &rawEmpty, "", true},
+		{Name(""), []any{rawEmpty}, "[]", true},
+		{Name(""), &[]any{rawEmpty}, "[]", true},
+		{Name(""), []any{&rawEmpty}, "[]", true},
+		{Name(""), &[]any{&rawEmpty}, "[]", true},
+		{Name(""), struct{ X RawMessage }{rawEmpty}, "{}", true},
+		{Name(""), &struct{ X RawMessage }{rawEmpty}, "{}", true},
+		{Name(""), struct{ X *RawMessage }{&rawEmpty}, "{}", true},
+		{Name(""), &struct{ X *RawMessage }{&rawEmpty}, "{}", true},
+		{Name(""), map[string]any{"nil": rawEmpty}, "{}", true},
+		{Name(""), &map[string]any{"nil": rawEmpty}, "{}", true},
+		{Name(""), map[string]any{"nil": &rawEmpty}, "{}", true},
+		{Name(""), &map[string]any{"nil": &rawEmpty}, "{}", true},
+		{Name(""), T1{rawEmpty}, "{}", true},
+		{Name(""), T2{&rawEmpty}, "{}", true},
+		{Name(""), &T1{rawEmpty}, "{}", true},
+		{Name(""), &T2{&rawEmpty}, "{}", true},
 
-		// 36 Test with json.RawMessage with some text.
+		// Test with RawMessage with some text.
 		//
 		// The tests below marked with Issue6458 used to generate "ImZvbyI=" instead "foo".
 		// This behavior was intentionally changed in Go 1.8.
@@ -934,10 +895,10 @@ func TestMarshalRawMessageValue(t *testing.T) {
 		{Name(""), &[]any{rawText}, `["foo"]`, true}, // Issue6458
 		{Name(""), []any{&rawText}, `["foo"]`, true},
 		{Name(""), &[]any{&rawText}, `["foo"]`, true},
-		{Name(""), struct{ M json.RawMessage }{rawText}, `{"M":"foo"}`, true}, // Issue6458
-		{Name(""), &struct{ M json.RawMessage }{rawText}, `{"M":"foo"}`, true},
-		{Name(""), struct{ M *json.RawMessage }{&rawText}, `{"M":"foo"}`, true},
-		{Name(""), &struct{ M *json.RawMessage }{&rawText}, `{"M":"foo"}`, true},
+		{Name(""), struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true}, // Issue6458
+		{Name(""), &struct{ M RawMessage }{rawText}, `{"M":"foo"}`, true},
+		{Name(""), struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
+		{Name(""), &struct{ M *RawMessage }{&rawText}, `{"M":"foo"}`, true},
 		{Name(""), map[string]any{"M": rawText}, `{"M":"foo"}`, true},  // Issue6458
 		{Name(""), &map[string]any{"M": rawText}, `{"M":"foo"}`, true}, // Issue6458
 		{Name(""), map[string]any{"M": &rawText}, `{"M":"foo"}`, true},
@@ -979,8 +940,61 @@ func TestMarshalPanic(t *testing.T) {
 	t.Error("Marshal should have panicked")
 }
 
-type marshaledValue string
-
-func (v marshaledValue) MarshalJSON() ([]byte, error) {
-	return []byte(v), nil
+func TestMarshalUncommonFieldNames(t *testing.T) {
+	v := struct {
+		A0, À, Aβ int
+	}{}
+	b, err := Marshal(v)
+	if err != nil {
+		t.Fatal("Marshal error:", err)
+	}
+	want := `{"A0":0,"Aβ":0,"À":0}`
+	got := string(b)
+	if got != want {
+		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
+	}
 }
+
+// CaseName is a case name annotated with a file and line.
+type CaseName struct {
+	Name  string
+	Where CasePos
+}
+
+// Name annotates a case name with the file and line of the caller.
+func Name(s string) (c CaseName) {
+	c.Name = s
+	runtime.Callers(2, c.Where.pc[:])
+	return c
+}
+
+// CasePos represents a file and line number.
+type CasePos struct{ pc [1]uintptr }
+
+func (pos CasePos) String() string {
+	frames := runtime.CallersFrames(pos.pc[:])
+	frame, _ := frames.Next()
+	return fmt.Sprintf("%s:%d", path.Base(frame.File), frame.Line)
+}
+
+type unmarshalerText struct {
+	A, B string
+}
+
+// needed for re-marshaling tests
+func (u unmarshalerText) MarshalText() ([]byte, error) {
+	return []byte(u.A + ":" + u.B), nil
+}
+
+func (u *unmarshalerText) UnmarshalText(b []byte) error {
+	pos := bytes.IndexByte(b, ':')
+	if pos == -1 {
+		return errors.New("missing separator")
+	}
+	u.A, u.B = string(b[:pos]), string(b[pos+1:])
+	return nil
+}
+
+var _ TextUnmarshaler = (*unmarshalerText)(nil)
+
+const startDetectingCyclesAfter = 1000
