@@ -16,7 +16,7 @@ func (v Value) Native() reflect.Value {
 }
 
 func NewValueFromRType(rType reflect.Type, valuePtr unsafe.Pointer) Value {
-	typ := NewTypeFromRType(rType)
+	typ := TypeFromRType(rType)
 	flag := uintptr(rType.Kind())
 	if typ.IfaceIndir() {
 		flag |= 1 << 7

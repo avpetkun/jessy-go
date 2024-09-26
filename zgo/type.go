@@ -9,6 +9,14 @@ import (
 //go:noescape
 func toRType(*Type) reflect.Type
 
+//go:linkname ifaceIndir reflect.ifaceIndir
+//go:noescape
+func ifaceIndir(unsafe.Pointer) bool
+
+func RTypeIfaceIndir(t reflect.Type) bool {
+	return ifaceIndir(UnpackEface(t).Data)
+}
+
 const (
 	// TODO (khr, drchase) why aren't these in TFlag?  Investigate, fix if possible.
 	kindDirectIface = 1 << 5
@@ -35,11 +43,11 @@ type Type struct {
 	PtrToThis int32 // type for pointer to this type, may be zero
 }
 
-func NewTypeFromRType(rt reflect.Type) *Type {
+func TypeFromRType(rt reflect.Type) *Type {
 	return (*Type)(UnpackEface(rt).Data)
 }
 
-func NewTypeFor[T any]() *Type {
+func TypeFor[T any]() *Type {
 	var v T
 	return UnpackEface(v).Type
 }

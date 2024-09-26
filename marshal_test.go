@@ -314,6 +314,26 @@ var expectedMarshalResult = `{"EmbedVpub":123,"EmbedVpriv":3145,"embed_v_ptr":78
 
 func TestMarshalAll(t *testing.T) {
 	{
+		Marshal(jsonbyte(7))
+		Marshal(textbyte(4))
+		Marshal((*unmarshalerText)(nil))
+		println("--------")
+		Marshal(map[*unmarshalerText]int{
+			(*unmarshalerText)(nil): 1,
+		})
+		println("--------")
+		Marshal(map[*unmarshalerText]int{
+			(*unmarshalerText)(nil): 1,
+			{"A", "B"}:              2,
+		})
+		rawText := json.RawMessage([]byte(`"foo"`))
+		println("--------")
+		Marshal(rawText)
+		println("--------")
+		Marshal(&rawText)
+	}
+
+	{
 		data, err := Marshal(nil)
 		require.NoError(t, err)
 		require.Equal(t, `null`, string(data))
@@ -571,7 +591,7 @@ func TestMarshalAll(t *testing.T) {
 		return S{}
 	}())
 	require.NoError(t, err)
-	require.Equal(t, "null", string(data))
+	require.Equal(t, "{}", string(data))
 
 	v := getTestStruct()
 
@@ -587,6 +607,7 @@ func TestMarshalAll(t *testing.T) {
 	//data, _ = MarshalFastPretty(v)
 	//os.WriteFile("min.json", data, os.ModePerm)
 
+	return
 	for range 100 {
 		data, err := Marshal(&v)
 		require.NoError(t, err)

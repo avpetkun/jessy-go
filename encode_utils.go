@@ -2,21 +2,6 @@ package jessy
 
 import "reflect"
 
-func tReallyImplements(t, inter reflect.Type) bool {
-	if t.Implements(inter) {
-		if t.Kind() == reflect.Struct {
-			for i := range t.NumField() {
-				f := t.Field(i)
-				if f.Anonymous && f.Type.Implements(inter) {
-					return false
-				}
-			}
-		}
-		return true
-	}
-	return false
-}
-
 func tImplementsAny(t reflect.Type) bool {
 	switch {
 	case t.Implements(typeAppendMarshaler):
