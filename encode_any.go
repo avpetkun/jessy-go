@@ -80,17 +80,17 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedd
 
 	tp := reflect.PointerTo(t)
 	switch {
-	case t.Implements(typeAppendMarshaler):
+	case tReallyImplements(t, typeAppendMarshaler):
 		return appendMarshalerEncoder(t, flags)
-	case tp.Implements(typeAppendMarshaler):
+	case tReallyImplements(tp, typeAppendMarshaler):
 		return appendMarshalerEncoder(tp, flags)
-	case t.Implements(typeMarshaler):
+	case tReallyImplements(t, typeMarshaler):
 		return marshalerEncoder(t, flags)
-	case tp.Implements(typeMarshaler):
+	case tReallyImplements(tp, typeMarshaler):
 		return marshalerEncoder(tp, flags)
-	case t.Implements(typeTextMarshaler):
+	case tReallyImplements(t, typeTextMarshaler):
 		return textMarshalerEncoder(t, flags)
-	case tp.Implements(typeTextMarshaler):
+	case tReallyImplements(tp, typeTextMarshaler):
 		return textMarshalerEncoder(tp, flags)
 	}
 
@@ -174,17 +174,8 @@ func structEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedded b
 	for i := range fieldsCount {
 		f := t.Field(i)
 
-		anonymousStruct := false
-		if f.Anonymous {
-			t := f.Type
-			if t.Kind() == reflect.Pointer {
-				t = t.Elem()
-			}
-			anonymousStruct = t.Kind() == reflect.Struct
-			if !f.IsExported() && !anonymousStruct {
-				continue
-			}
-		} else if !f.IsExported() {
+		anonymousStruct := f.Anonymous && tReallyStruct(f.Type) && !tImplementsAny(f.Type)
+		if !f.IsExported() && !anonymousStruct {
 			continue
 		}
 
