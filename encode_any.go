@@ -38,7 +38,7 @@ func getTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
 	if val, ok := encodersTypesCache[flags].Load(typ); ok {
 		return val.(UnsafeEncoder)
 	}
-	encoder := createTypeEncoder(0, flags, typ.Native(), typ.IfaceIndir(), false)
+	encoder := createTypeEncoder(0, 0, flags, typ.Native(), typ.IfaceIndir(), false)
 	encodersTypesCache[flags].Store(typ, encoder)
 	return encoder
 }
@@ -51,14 +51,14 @@ func nullEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
 	return append(dst, 'n', 'u', 'l', 'l'), nil
 }
 
-func createItemTypeEncoder(deep int, flags Flags, t reflect.Type) UnsafeEncoder {
+func createItemTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type) UnsafeEncoder {
 	ifaceIndir := t.Kind() == reflect.Pointer || zgo.RTypeIfaceIndir(t)
-	return createTypeEncoder(deep, flags, t, ifaceIndir, false)
+	return createTypeEncoder(deep, indent, flags, t, ifaceIndir, false)
 }
 
-func createTypeEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
+func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
 	if t.Kind() == reflect.Pointer {
-		return pointerEncoder(deep, flags, t, ifaceIndir, embedded)
+		return pointerEncoder(deep, indent, flags, t, ifaceIndir, embedded)
 	}
 
 	for i := range customEncoders {
@@ -89,15 +89,15 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedd
 
 	switch t.Kind() {
 	case reflect.Struct:
-		return structEncoder(deep, flags, t, ifaceIndir, embedded)
+		return structEncoder(deep, indent, flags, t, ifaceIndir, embedded)
 	case reflect.String:
 		return stringEncoder(t, flags)
 	case reflect.Map:
-		return mapEncoder(deep, t, flags, !ifaceIndir)
+		return mapEncoder(deep, indent, t, flags, !ifaceIndir)
 	case reflect.Slice:
-		return sliceEncoder(deep, t, flags)
+		return sliceEncoder(deep, indent, t, flags)
 	case reflect.Array:
-		return arrayEncoder(deep, t, flags)
+		return arrayEncoder(deep, indent, t, flags)
 
 	case reflect.Bool:
 		return boolEncoder(flags)
@@ -143,11 +143,11 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedd
 	return nopEncoder
 }
 
-func pointerEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
+func pointerEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	needQuotes := flags.Has(NeedQuotes)
 	flags = flags.excludes(OmitEmpty)
-	elemEncoder := createTypeEncoder(deep, flags, t.Elem(), true, embedded)
+	elemEncoder := createTypeEncoder(deep, indent, flags, t.Elem(), true, embedded)
 
 	if ifaceIndir {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {

@@ -2,14 +2,13 @@ package jessy
 
 import (
 	"reflect"
-	"strings"
 	"unsafe"
 
 	"github.com/avpetkun/jessy-go/zgo"
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
-func sliceEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
+func sliceEncoder(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncoder {
 	elem := t.Elem()
 	if elem.Kind() == reflect.Uint8 && !tImplementsAny(elem) {
 		return sliceBase64Encoder(flags)
@@ -20,11 +19,11 @@ func sliceEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
 	flags = flags.excludes(OmitEmpty)
 
 	elemSize := uint(elem.Size())
-	elemEncoder := createItemTypeEncoder(deep, flags, elem)
+	elemEncoder := createItemTypeEncoder(deep, indent+1, flags, elem)
 
 	if prettySpaces {
-		deepSpaces0 := strings.Repeat("\t", deep)
-		deepSpaces2 := strings.Repeat("\t", deep+1)
+		deepSpaces0 := getIndent(indent)
+		deepSpaces1 := getIndent(indent + 1)
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			h := (*zgo.Slice)(v)
 			if h == nil || h.Len == 0 {
@@ -37,14 +36,14 @@ func sliceEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
 			dst = append(dst, '[', '\n')
 			var err error
 			for i := range h.Len {
-				dst = append(dst, deepSpaces2...)
+				dst = append(dst, deepSpaces1...)
 				dstLen := len(dst)
 				dst, err = elemEncoder(dst, unsafe.Add(h.Data, elemSize*i))
 				if err != nil {
 					return dst, err
 				}
 				if len(dst) == dstLen {
-					dst = dst[:dstLen-deep-1]
+					dst = dst[:dstLen-1-int(indent)]
 				} else {
 					dst = append(dst, ',', '\n')
 				}
@@ -107,12 +106,12 @@ func sliceBase64Encoder(flags Flags) UnsafeEncoder {
 	}
 }
 
-func arrayEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
+func arrayEncoder(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncoder {
 	arrayLen := uint(t.Len())
 	elem := t.Elem()
 
 	elemSize := uint(elem.Size())
-	elemEncoder := createItemTypeEncoder(deep, flags.excludes(OmitEmpty), elem)
+	elemEncoder := createItemTypeEncoder(deep, indent, flags.excludes(OmitEmpty), elem)
 
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		dst = append(dst, '[')

@@ -14,7 +14,7 @@ type StructField struct {
 	Encoder UnsafeEncoder
 }
 
-func structEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
+func structEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
 	if deep++; deep >= MarshalMaxDeep {
 		return nopEncoder
 	}
@@ -55,7 +55,11 @@ func structEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedded b
 			}
 		}
 
-		fieldEncoder := createTypeEncoder(deep, fieldFlags, f.Type, ifaceIndir, anonymousStruct)
+		nextIndent := indent + 1
+		if embedded {
+			nextIndent--
+		}
+		fieldEncoder := createTypeEncoder(deep, nextIndent, fieldFlags, f.Type, ifaceIndir, anonymousStruct)
 
 		if anonymousStruct {
 			fields = append(fields, StructField{
@@ -86,7 +90,7 @@ func structEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedded b
 	})
 
 	if prettySpaces {
-		return structEncoderPretty(deep, fields, embedded)
+		return structEncoderPretty(indent, fields, embedded)
 	}
 	return structEncoderMinimal(fields, embedded)
 }
@@ -98,17 +102,17 @@ func nopStructEncoder(dst []byte, value unsafe.Pointer) ([]byte, error) {
 	return append(dst, '{', '}'), nil
 }
 
-func structEncoderPretty(deep int, fields []StructField, embedded bool) UnsafeEncoder {
-	if embedded && deep > 1 {
-		deep--
-	}
-	deepSpace1 := strings.Repeat("\t", deep+1)
-	deepSpace0 := strings.Repeat("\t", deep)
+func structEncoderPretty(indent uint32, fields []StructField, embedded bool) UnsafeEncoder {
+	deepSpace0 := getIndent(indent)
+	deepSpace1 := getIndent(indent + 1)
 	if embedded {
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			var err error
+			var was uint32
 			for i := range fields {
-				dst = append(dst, deepSpace0...)
+				if was != 0 {
+					dst = append(dst, deepSpace0...)
+				}
 				dst = append(dst, fields[i].Key...)
 				dstLen := len(dst)
 				dst, err = fields[i].Encoder(dst, unsafe.Add(value, fields[i].Offset))
@@ -116,9 +120,10 @@ func structEncoderPretty(deep int, fields []StructField, embedded bool) UnsafeEn
 					return dst, err
 				}
 				if len(dst) == dstLen {
-					dst = dst[:dstLen-fields[i].KeyLen-deep]
+					dst = dst[:dstLen-fields[i].KeyLen-int(was)]
 				} else {
 					dst = append(dst, ',', '\n')
+					was = indent
 				}
 			}
 			if i := len(dst); i != 0 && dst[i-1] == '\n' {
@@ -139,7 +144,7 @@ func structEncoderPretty(deep int, fields []StructField, embedded bool) UnsafeEn
 				return dst, err
 			}
 			if len(dst) == dstLen {
-				dst = dst[:dstLen-fields[i].KeyLen-deep-1]
+				dst = dst[:dstLen-fields[i].KeyLen-1-int(indent)]
 			} else {
 				dst = append(dst, ',', '\n')
 			}

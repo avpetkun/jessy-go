@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,8 +14,12 @@ import (
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
+type RecursionStruct struct {
+	S *Struct
+}
+
 type Struct struct {
-	*Struct
+	*RecursionStruct
 
 	Bool1 bool
 	Bool2 bool
@@ -325,6 +330,22 @@ func getTestMoreStruct() MoreStruct {
 var expectedMarshalResult = `{"EmbedVpub":123,"EmbedVpriv":3145,"embed_v_ptr":789,"AnyVal1":123,"AnyVal2":"abc","AnyValPtr":123,"AppendMarshalVal":"AppendMarshalVal","Bool1":true,"Bool1Ptr":true,"Bool2":false,"Bool2Ptr":false,"Byte":12,"ByteArr5":[1,2,3,4,5],"ByteArrCustom":"custom:0x01020300000000000000","BytePtr":12,"ByteSlice":"ImhlbGxvISI=","DoubleIntPtr":123,"DoubleStrSlicePtr":["a","b","c"],"Float32":16.17,"Float32Ptr":16.17,"Float64":17.18,"Float64Ptr":17.18,"Int":123,"Int16":567,"Int16Ptr":567,"Int32":789,"Int32Ptr":789,"Int64":-91011,"Int64Ptr":-91011,"Int8":35,"Int8Ptr":35,"IntArr2":[1,2],"IntArr3":[1,2,3],"IntArr3Ptr":[1,2,3],"IntPtr":123,"JMarshalPtrEmpty":null,"JMarshalPtrPtr":"JMarshalPtrPtr","JMarshalPtrVal":"JMarshalPtrVal","JMarshalValPtr":"JMarshalValPtr","JMarshalValVal":"JMarshalValVal","MapEmpty":{},"MapValAny":{"1":2,"2":"b"},"MapValVal":{"a":1,"b":2},"MapValValPtr":{"a":1,"b":2},"MarshalMapKey":{"a":"a1","b":"b1","c":"c1","de":"de1","fgk":"fgk1"},"MarshalMapKeyPtr":{"a":"a1","b":"b1","c":"c1","de":"de1","fgk":"fgk1"},"Nested1":{"nested_u":435345,"nested_v":2},"Nested2":{"nested_u_priv":78634},"NestedJMarshalPtrPtr":{"JMarshalPtr":"NestedJMarshalPtrPtr"},"NestedJMarshalPtrPtr2":{"JMarshalPtr":"NestedJMarshalPtrPtr2","X":123},"NestedPtr1":{"nested_u":986754,"nested_v":3},"NestedPtr2":{"nested_u":986755,"nested_v":33},"NestedPtrNil":null,"NilMap":null,"String":"test_string","StringPtr":"test_string","StructSlice":[{"A":1,"B":2},{"A":3,"B":4}],"StructSlicePtr":[{"A":1,"B":2},{"A":3,"B":4}],"TMarhalVal":"TMarhalVal","Uint16":1314,"Uint16Ptr":1314,"Uint32":1415,"Uint32Ptr":1415,"Uint64":1516,"Uint64Ptr":1516,"Uint8":13,"Uint8Ptr":13,"strSlice":["a","b","c"],"strSlicePtr":["a","b","c"],"Complex64":"(123+456i)","ComplexNeg128":"(-123-4.56i)","MapAnyAny":{"1":"a","b":2},"MapAnyVal":{"1":2,"3":4}}`
 
 func TestMarshalAll(t *testing.T) {
+	if false {
+		v := getTestMoreStruct()
+
+		AddValueEncoder(func(flags Flags) ValueEncoder[[10]byte] {
+			return func(dst []byte, v [10]byte) ([]byte, error) {
+				dst = append(dst, `"custom:`...)
+				dst = zstr.AppendHex(dst, v[:])
+				dst = append(dst, '"')
+				return dst, nil
+			}
+		})
+
+		data, _ := MarshalPretty(v)
+		os.WriteFile("min.json", data, os.ModePerm)
+	}
+
 	{
 		expectData, _ := json.Marshal(struct{ M Marshaler }{})
 		actualData, _ := Marshal(struct{ M Marshaler }{})
@@ -644,7 +665,7 @@ func BenchmarkMarshal(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
 		for range b.N {
-			buf, _ = AppendMarshalFlags(buf[:0], value, EncodeFastest|PrettySpaces)
+			buf, _ = AppendMarshalFastPretty(buf[:0], value)
 		}
 	})
 	b.Run("jessy-standard", func(b *testing.B) {
@@ -658,7 +679,7 @@ func BenchmarkMarshal(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
 		for range b.N {
-			buf, _ = AppendMarshalFlags(buf[:0], value, EncodeStandard|PrettySpaces)
+			buf, _ = AppendMarshalPretty(buf[:0], value)
 		}
 	})
 	b.Run("json", func(b *testing.B) {

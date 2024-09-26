@@ -1,6 +1,18 @@
 package jessy
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/avpetkun/jessy-go/zgo"
+)
+
+func getIndent(n uint32) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = '\t'
+	}
+	return zgo.B2S(b)
+}
 
 func tReallyImplements(t, interfaceType reflect.Type) bool {
 	if t.Implements(interfaceType) {
