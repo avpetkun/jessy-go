@@ -50,8 +50,14 @@ func NewAnyInterfacerFromRType(rType reflect.Type) func(valPtr unsafe.Pointer) a
 }
 
 func NewInterfacerFromRType[I any](rType reflect.Type) func(valPtr unsafe.Pointer) I {
-	var v I
-	i, ok := NewRValueFromRType(rType, unsafe.Pointer(&v)).Interface().(I)
+	if reflect.TypeFor[I]() == rType {
+		return func(valPtr unsafe.Pointer) I {
+			return *(*I)(valPtr)
+		}
+	}
+
+	var i I
+	i, ok := NewRValueFromRType(rType, unsafe.Pointer(&i)).Interface().(I)
 	if !ok {
 		return nil
 	}

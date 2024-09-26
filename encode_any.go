@@ -50,6 +50,10 @@ func nopEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
 	return dst, nil
 }
 
+func nullEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
+	return append(dst, 'n', 'u', 'l', 'l'), nil
+}
+
 func createItemTypeEncoder(deep int, flags Flags, t reflect.Type) UnsafeEncoder {
 	ifaceIndir := t.Kind() == reflect.Pointer || zgo.RTypeIfaceIndir(t)
 	return createTypeEncoder(deep, flags, t, ifaceIndir, false)
@@ -77,13 +81,13 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedd
 	tp := reflect.PointerTo(t)
 	switch {
 	case t.Implements(typeAppendMarshaler):
-		return appendMarshalerEncoder(t)
+		return appendMarshalerEncoder(t, flags)
 	case tp.Implements(typeAppendMarshaler):
-		return appendMarshalerEncoder(tp)
+		return appendMarshalerEncoder(tp, flags)
 	case t.Implements(typeMarshaler):
-		return marshalerEncoder(t)
+		return marshalerEncoder(t, flags)
 	case tp.Implements(typeMarshaler):
-		return marshalerEncoder(tp)
+		return marshalerEncoder(tp, flags)
 	case t.Implements(typeTextMarshaler):
 		return textMarshalerEncoder(t, flags)
 	case tp.Implements(typeTextMarshaler):
@@ -139,7 +143,7 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedd
 	case reflect.Interface:
 		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 			eface := (*zgo.EmptyInterface)(value)
-			if eface.Data == nil {
+			if eface.Type == nil {
 				return append(dst, 'n', 'u', 'l', 'l'), nil
 			}
 			return getTypeEncoder(eface.Type, flags)(dst, eface.Data)
@@ -406,13 +410,20 @@ func unpackEncoder(deep int, flags Flags, t reflect.Type) UnsafeEncoder {
 	}
 }
 
-func marshalerEncoder(t reflect.Type) UnsafeEncoder {
+func marshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	getInterface := zgo.NewInterfacerFromRType[Marshaler](t)
 	if getInterface == nil {
-		return nopEncoder
+		return nullEncoder
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		data, err := getInterface(v).MarshalJSON()
+		i := getInterface(v)
+		if i == nil {
+			if flags.Has(OmitEmpty) {
+				return dst, nil
+			}
+			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
+		data, err := i.MarshalJSON()
 		if err != nil {
 			return dst, err
 		}
@@ -420,13 +431,20 @@ func marshalerEncoder(t reflect.Type) UnsafeEncoder {
 	}
 }
 
-func appendMarshalerEncoder(t reflect.Type) UnsafeEncoder {
+func appendMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	getInterface := zgo.NewInterfacerFromRType[AppendMarshaler](t)
 	if getInterface == nil {
-		return nopEncoder
+		return nullEncoder
 	}
 	return func(dst []byte, v unsafe.Pointer) (newDst []byte, err error) {
-		newDst, err = getInterface(v).AppendMarshalJSON(dst)
+		i := getInterface(v)
+		if i == nil {
+			if flags.Has(OmitEmpty) {
+				return dst, nil
+			}
+			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
+		newDst, err = i.AppendMarshalJSON(dst)
 		if err != nil {
 			return dst, nil
 		}
@@ -440,12 +458,19 @@ func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 
 	getInterface := zgo.NewInterfacerFromRType[TextMarshaler](t)
 	if getInterface == nil {
-		return nopEncoder
+		return nullEncoder
 	}
 
 	if needValidate {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-			data, err := getInterface(v).MarshalText()
+			i := getInterface(v)
+			if i == nil {
+				if flags.Has(OmitEmpty) {
+					return dst, nil
+				}
+				return append(dst, 'n', 'u', 'l', 'l'), nil
+			}
+			data, err := i.MarshalText()
 			if err != nil {
 				return dst, nil
 			}
@@ -453,7 +478,14 @@ func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 		}
 	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		data, err := getInterface(v).MarshalText()
+		i := getInterface(v)
+		if i == nil {
+			if flags.Has(OmitEmpty) {
+				return dst, nil
+			}
+			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
+		data, err := i.MarshalText()
 		if err != nil {
 			return dst, nil
 		}

@@ -314,6 +314,12 @@ var expectedMarshalResult = `{"EmbedVpub":123,"EmbedVpriv":3145,"embed_v_ptr":78
 
 func TestMarshalAll(t *testing.T) {
 	{
+		expectData, _ := json.Marshal(struct{ M Marshaler }{})
+		actualData, _ := Marshal(struct{ M Marshaler }{})
+		require.Equal(t, string(expectData), string(actualData))
+	}
+
+	{
 		Marshal(jsonbyte(7))
 		Marshal(textbyte(4))
 		Marshal((*unmarshalerText)(nil))
