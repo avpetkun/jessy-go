@@ -98,6 +98,8 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 		return sliceEncoder(deep, indent, t, flags)
 	case reflect.Array:
 		return arrayEncoder(deep, indent, t, flags)
+	case reflect.Interface:
+		return interfaceEncoder(flags)
 
 	case reflect.Bool:
 		return boolEncoder(flags)
@@ -129,15 +131,6 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 		return complex64Encoder(flags)
 	case reflect.Complex128:
 		return complex128Encoder(flags)
-
-	case reflect.Interface:
-		return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
-			eface := (*zgo.EmptyInterface)(value)
-			if eface.Type == nil {
-				return append(dst, 'n', 'u', 'l', 'l'), nil
-			}
-			return getTypeEncoder(eface.Type, flags)(dst, eface.Data)
-		}
 	}
 
 	return nopEncoder
@@ -175,5 +168,15 @@ func pointerEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir
 			return append(dst, 'n', 'u', 'l', 'l'), nil
 		}
 		return elemEncoder(dst, v)
+	}
+}
+
+func interfaceEncoder(flags Flags) UnsafeEncoder {
+	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
+		eface := (*zgo.EmptyInterface)(value)
+		if eface.Type == nil {
+			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
+		return getTypeEncoder(eface.Type, flags)(dst, eface.Data)
 	}
 }
