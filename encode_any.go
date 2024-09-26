@@ -8,7 +8,7 @@ import (
 	"github.com/avpetkun/jessy-go/zgo"
 )
 
-func Precache(value any, flags Flags) {
+func MarshalPrecache(value any, flags Flags) {
 	eface := zgo.UnpackEface(value)
 	if eface.Type == nil {
 		return
@@ -16,7 +16,7 @@ func Precache(value any, flags Flags) {
 	getTypeEncoder(eface.Type, flags)
 }
 
-func PrecacheFor[T any](flags Flags) {
+func MarshalPrecacheFor[T any](flags Flags) {
 	typ := zgo.TypeFor[T]()
 	if typ == nil {
 		return
