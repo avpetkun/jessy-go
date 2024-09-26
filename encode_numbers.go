@@ -587,7 +587,7 @@ var errFloatNum = errors.New("float number is NaN or +-Inf")
 var errComplexNum = errors.New("complex float parts is NaN or +-Inf")
 
 func appendQuotedComplex(dst []byte, real, imag float64) []byte {
-	dst = append(dst, '"')
+	dst = append(dst, '"', '(')
 
 	dst = appendFloat64(dst, real)
 
@@ -596,7 +596,7 @@ func appendQuotedComplex(dst []byte, real, imag float64) []byte {
 
 	dst = appendFloat64(dst, imag)
 	dst = append(dst, 'i')
-	dst = append(dst, '"')
+	dst = append(dst, ')', '"')
 
 	if dst[imIdx] == '-' {
 		copy(dst[imIdx-1:], dst[imIdx:])
