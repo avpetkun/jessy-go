@@ -152,7 +152,6 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedd
 type StructField struct {
 	Key     string
 	KeyLen  int
-	Null    string
 	Offset  uintptr
 	Encoder UnsafeEncoder
 }
@@ -233,12 +232,6 @@ func structEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedded b
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].Key < fields[j].Key
 	})
-
-	if fields[0].KeyLen == 0 {
-		fields[0].Null = "null"
-	} else {
-		fields[0].Null = "{" + fields[0].Key + "null}"
-	}
 
 	if prettySpaces {
 		return structEncoderPretty(deep, fields, embedded)
