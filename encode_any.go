@@ -100,10 +100,7 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedd
 	case reflect.String:
 		return stringEncoder(flags)
 	case reflect.Map:
-		if ifaceIndir {
-			return unpackEncoder(deep, flags, t)
-		}
-		return mapEncoder(deep, t, flags)
+		return mapEncoder(deep, t, flags, !ifaceIndir)
 	case reflect.Slice:
 		return sliceEncoder(deep, t, flags)
 	case reflect.Array:
@@ -372,27 +369,6 @@ func pointerEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedded 
 				return append(dst, '"', '"'), nil
 			}
 			if omitEmpty || embedded {
-				return dst, nil
-			}
-			return append(dst, 'n', 'u', 'l', 'l'), nil
-		}
-		return elemEncoder(dst, v)
-	}
-}
-
-func unpackEncoder(deep int, flags Flags, t reflect.Type) UnsafeEncoder {
-	omitEmpty := flags.Has(OmitEmpty)
-	needQuotes := flags.Has(NeedQuotes)
-	flags = flags.excludes(OmitEmpty)
-	elemEncoder := createTypeEncoder(deep, flags, t, false, false)
-
-	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
-		v = *(*unsafe.Pointer)(v)
-		if v == nil {
-			if needQuotes {
-				return append(dst, '"', '"'), nil
-			}
-			if omitEmpty {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil

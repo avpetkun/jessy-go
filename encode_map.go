@@ -12,7 +12,27 @@ import (
 	"github.com/avpetkun/jessy-go/zgo"
 )
 
-func mapEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
+func mapEncoder(deep int, t reflect.Type, flags Flags, isDirectIface bool) UnsafeEncoder {
+	encodeMap := mapUnpackedEncoder(deep, t, flags)
+	if isDirectIface {
+		return encodeMap
+	}
+	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		v = *(*unsafe.Pointer)(v)
+		if v == nil {
+			if flags.Has(NeedQuotes) {
+				return append(dst, '"', '"'), nil
+			}
+			if flags.Has(OmitEmpty) {
+				return dst, nil
+			}
+			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
+		return encodeMap(dst, v)
+	}
+}
+
+func mapUnpackedEncoder(deep int, t reflect.Type, flags Flags) UnsafeEncoder {
 	if flags.Has(PrettySpaces) {
 		if flags.Has(SortMapKeys) {
 			return mapEncoderSortedPretty(deep, t, flags)
