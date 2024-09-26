@@ -1,16 +1,48 @@
 package jessy
 
 import (
+	"fmt"
+	"reflect"
 	"unsafe"
 
 	"github.com/avpetkun/jessy-go/zgo"
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
-func stringEncoder(flags Flags) UnsafeEncoder {
+var typeJsonNumber = reflect.TypeFor[Number]()
+
+//go:linkname isValidJsonNumber encoding/json.isValidNumber
+func isValidJsonNumber(s string) bool
+
+func stringEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 	escapeHTML := flags.Has(EscapeHTML)
+	needQuotes := flags.Has(NeedQuotes)
 	needValidate := flags.Has(ValidateString) || escapeHTML
+
+	if t == typeJsonNumber {
+		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+			h := (*zgo.String)(v)
+			if h.Len == 0 {
+				if omitEmpty {
+					return dst, nil
+				}
+				return append(dst, '0'), nil
+			}
+			numStr := unsafe.String(h.Data, h.Len)
+			if !isValidJsonNumber(numStr) {
+				return dst, fmt.Errorf("json: invalid number literal %q", numStr)
+			}
+			if needQuotes {
+				dst = append(dst, '"')
+				dst = append(dst, numStr...)
+				dst = append(dst, '"')
+			} else {
+				dst = append(dst, numStr...)
+			}
+			return dst, nil
+		}
+	}
 
 	if omitEmpty {
 		if needValidate {

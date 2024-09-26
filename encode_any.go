@@ -98,7 +98,7 @@ func createTypeEncoder(deep int, flags Flags, t reflect.Type, ifaceIndir, embedd
 	case reflect.Struct:
 		return structEncoder(deep, flags, t, ifaceIndir, embedded)
 	case reflect.String:
-		return stringEncoder(flags)
+		return stringEncoder(t, flags)
 	case reflect.Map:
 		return mapEncoder(deep, t, flags, !ifaceIndir)
 	case reflect.Slice:
