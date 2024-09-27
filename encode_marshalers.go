@@ -1,6 +1,8 @@
 package jessy
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"unsafe"
 
@@ -23,7 +25,7 @@ func marshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 		}
 		data, err := i.MarshalJSON()
 		if err != nil {
-			return dst, err
+			return dst, errors.Join(fmt.Errorf("failed to call MarshalJSON of type <%s>", t), err)
 		}
 		return append(dst, data...), nil
 	}
@@ -44,7 +46,7 @@ func appendMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 		}
 		newDst, err = i.AppendMarshalJSON(dst)
 		if err != nil {
-			return dst, nil
+			return dst, errors.Join(fmt.Errorf("failed to call AppendMarshalJSON of type <%s>", t), err)
 		}
 		return newDst, nil
 	}
@@ -70,7 +72,7 @@ func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 			}
 			data, err := i.MarshalText()
 			if err != nil {
-				return dst, nil
+				return dst, errors.Join(fmt.Errorf("failed to call MarshalText of type <%s>", t), err)
 			}
 			return zstr.AppendQuotedString(dst, data, escapeHTML), nil
 		}
@@ -85,7 +87,7 @@ func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 		}
 		data, err := i.MarshalText()
 		if err != nil {
-			return dst, nil
+			return dst, errors.Join(fmt.Errorf("failed to call MarshalText of type <%s>", t), err)
 		}
 		dst = append(dst, '"')
 		dst = append(dst, data...)
