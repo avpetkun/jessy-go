@@ -30,7 +30,7 @@ func getTypeHashEncoder(typ *zgo.Type) hashEncoder {
 	if val, ok := hashEncodersCache.Load(typ); ok {
 		return val.(hashEncoder)
 	}
-	encoder := createTypeHashEncoder(0, typ.Native(), false, false)
+	encoder := createTypeHashEncoder(0, typ.Native(), typ.IfaceIndir())
 	hashEncodersCache.Store(typ, encoder)
 	return encoder
 }
@@ -39,39 +39,29 @@ func nopHashEncoder(h *hashSum64, v unsafe.Pointer) error {
 	return nil
 }
 
-func createItemTypeHashEncoder(deep int, t reflect.Type) hashEncoder {
-	if t.Kind() == reflect.Pointer {
-		return pointerHashEncoder(deep, t.Elem(), false, false)
-	}
-	return createTypeHashEncoder(deep, t, false, false)
+func createItemTypeHashEncoder(deep uint32, t reflect.Type) hashEncoder {
+	ifaceIndir := t.Kind() == reflect.Pointer || zgo.RTypeIfaceIndir(t)
+	return createTypeHashEncoder(deep, t, ifaceIndir)
 }
 
-func createTypeHashEncoder(deep int, t reflect.Type, wasStruct, byPointer bool) hashEncoder {
-	if deep++; deep >= MarshalMaxDeep {
-		return nopHashEncoder
-	}
-
+func createTypeHashEncoder(deep uint32, t reflect.Type, ifaceIndir bool) hashEncoder {
 	if t.Kind() == reflect.Pointer {
-		if t.Elem().Kind() == reflect.Struct {
-			return createTypeHashEncoder(deep, t.Elem(), wasStruct, true)
-		}
-		return pointerHashEncoder(deep, t.Elem(), wasStruct, true)
+		return pointerHashEncoder(deep, t, ifaceIndir)
 	}
 
 	switch t.Kind() {
 	case reflect.Struct:
-		return structHashEncoder(deep, t, byPointer)
+		return structHashEncoder(deep, t, ifaceIndir)
 	case reflect.String:
 		return stringHashEncoder
 	case reflect.Map:
-		if wasStruct {
-			return pointerHashEncoder(deep, t, false, false)
-		}
-		return mapHashEncoderSorted(deep, t)
+		return mapHashEncoder(deep, t, !ifaceIndir)
 	case reflect.Slice:
 		return sliceHashEncoder(deep, t)
 	case reflect.Array:
 		return arrayHashEncoder(deep, t)
+	case reflect.Interface:
+		return interfaceHashEncoder
 
 	case reflect.Bool:
 		return boolHashEncoder
@@ -85,29 +75,30 @@ func createTypeHashEncoder(deep int, t reflect.Type, wasStruct, byPointer bool) 
 		return uint32HashEncoder
 	case reflect.Int64, reflect.Uint64, reflect.Float64:
 		return uint64HashEncoder
-
-	case reflect.Interface:
-		return func(h *hashSum64, value unsafe.Pointer) error {
-			eface := (*zgo.EmptyInterface)(value)
-			if eface.Data == nil {
-				h.Byte(0)
-				return nil
-			}
-			return getTypeHashEncoder(eface.Type)(h, eface.Data)
-		}
 	}
 
 	return nopHashEncoder
 }
 
-func structHashEncoder(deep int, t reflect.Type, byPointer bool) hashEncoder {
+func interfaceHashEncoder(h *hashSum64, value unsafe.Pointer) error {
+	eface := (*zgo.EmptyInterface)(value)
+	if eface.Data == nil {
+		h.Byte(0)
+		return nil
+	}
+	return getTypeHashEncoder(eface.Type)(h, eface.Data)
+}
+
+func structHashEncoder(deep uint32, t reflect.Type, ifaceIndir bool) hashEncoder {
+	if deep++; deep >= MarshalMaxDeep {
+		return nopHashEncoder
+	}
+
 	fieldsCount := t.NumField()
 	if fieldsCount == 0 {
-		return func(h *hashSum64, value unsafe.Pointer) error {
-			h.Byte(0)
-			return nil
-		}
+		return nopHashEncoder
 	}
+
 	type Field struct {
 		Key     uint64
 		Offset  uintptr
@@ -117,29 +108,6 @@ func structHashEncoder(deep int, t reflect.Type, byPointer bool) hashEncoder {
 	fields := make([]Field, 0, fieldsCount)
 	for i := range fieldsCount {
 		f := t.Field(i)
-		ft := f.Type
-
-		makeUnpack := false
-		if fieldsCount == 1 {
-			if ft.Kind() == reflect.Pointer {
-				ft = ft.Elem()
-				makeUnpack = byPointer
-			}
-			byPointer = false
-		} else {
-			byPointer = ft.Kind() == reflect.Struct
-			if !byPointer && ft.Kind() == reflect.Pointer && ft.Elem().Kind() == reflect.Struct {
-				makeUnpack = true
-			}
-		}
-
-		const wasStruct = true
-		var fieldEncoder hashEncoder
-		if makeUnpack {
-			fieldEncoder = pointerHashEncoder(deep, ft, wasStruct, byPointer)
-		} else {
-			fieldEncoder = createTypeHashEncoder(deep, ft, wasStruct, byPointer)
-		}
 
 		keySum := newHashSum64()
 		keySum.Write([]byte(f.Name))
@@ -148,7 +116,7 @@ func structHashEncoder(deep int, t reflect.Type, byPointer bool) hashEncoder {
 		fields = append(fields, Field{
 			Key:     keySum.Sum(),
 			Offset:  f.Offset,
-			Encoder: fieldEncoder,
+			Encoder: createTypeHashEncoder(deep, f.Type, ifaceIndir),
 		})
 	}
 
@@ -168,11 +136,20 @@ func structHashEncoder(deep int, t reflect.Type, byPointer bool) hashEncoder {
 	}
 }
 
-func pointerHashEncoder(deep int, t reflect.Type, wasStruct, byPointer bool) hashEncoder {
-	elemEncoder := createTypeHashEncoder(deep, t, wasStruct, byPointer)
+func pointerHashEncoder(deep uint32, t reflect.Type, ifaceIndir bool) hashEncoder {
+	elemEncoder := createTypeHashEncoder(deep, t.Elem(), true)
 
+	if ifaceIndir {
+		return func(h *hashSum64, v unsafe.Pointer) error {
+			v = *(*unsafe.Pointer)(v)
+			if v == nil {
+				h.Byte(0)
+				return nil
+			}
+			return elemEncoder(h, v)
+		}
+	}
 	return func(h *hashSum64, v unsafe.Pointer) error {
-		v = *(*unsafe.Pointer)(v)
 		if v == nil {
 			h.Byte(0)
 			return nil
@@ -231,11 +208,11 @@ func uint64HashEncoder(h *hashSum64, v unsafe.Pointer) error {
 	return nil
 }
 
-func arrayHashEncoder(deep int, t reflect.Type) hashEncoder {
+func arrayHashEncoder(deep uint32, t reflect.Type) hashEncoder {
 	arrayLen := uint(t.Len())
 	elem := t.Elem()
 	if elem.Kind() == reflect.Uint8 {
-		return arrayByteHexHashEncoder(arrayLen)
+		return arrayUint8HashEncoder(arrayLen)
 	}
 
 	elemSize := uint(elem.Size())
@@ -252,7 +229,7 @@ func arrayHashEncoder(deep int, t reflect.Type) hashEncoder {
 	}
 }
 
-func arrayByteHexHashEncoder(arrayLen uint) hashEncoder {
+func arrayUint8HashEncoder(arrayLen uint) hashEncoder {
 	return func(h *hashSum64, v unsafe.Pointer) error {
 		data := zgo.NewSliceBytes(v, arrayLen, arrayLen)
 		h.Byte(0)
@@ -261,7 +238,7 @@ func arrayByteHexHashEncoder(arrayLen uint) hashEncoder {
 	}
 }
 
-func sliceHashEncoder(deep int, t reflect.Type) hashEncoder {
+func sliceHashEncoder(deep uint32, t reflect.Type) hashEncoder {
 	elem := t.Elem()
 	if elem.Kind() == reflect.Uint8 {
 		return sliceBase64HexEncoder
@@ -293,7 +270,22 @@ func sliceBase64HexEncoder(h *hashSum64, v unsafe.Pointer) error {
 	return nil
 }
 
-func mapHashEncoderSorted(deep int, t reflect.Type) hashEncoder {
+func mapHashEncoder(deep uint32, t reflect.Type, isDirectIface bool) hashEncoder {
+	encodeMap := mapHashEncoderSorted(deep, t)
+	if isDirectIface {
+		return encodeMap
+	}
+	return func(h *hashSum64, v unsafe.Pointer) error {
+		v = *(*unsafe.Pointer)(v)
+		if v == nil {
+			h.Byte(0)
+			return nil
+		}
+		return encodeMap(h, v)
+	}
+}
+
+func mapHashEncoderSorted(deep uint32, t reflect.Type) hashEncoder {
 	encodeKey := createItemTypeHashEncoder(deep, t.Key())
 	encodeVal := createItemTypeHashEncoder(deep, t.Elem())
 	getIterator := zgo.NewMapIteratorFromRType(t)
