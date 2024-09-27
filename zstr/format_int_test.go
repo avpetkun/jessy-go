@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/avpetkun/jessy-go/require"
 )
 
 func TestFormatUint8(t *testing.T) {

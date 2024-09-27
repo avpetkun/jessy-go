@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/avpetkun/jessy-go/require"
 	"github.com/avpetkun/jessy-go/zgo"
 	"github.com/avpetkun/jessy-go/zstr"
 )

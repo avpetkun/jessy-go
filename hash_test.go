@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/avpetkun/jessy-go/require"
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
