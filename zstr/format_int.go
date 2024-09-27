@@ -6,7 +6,7 @@ func AppendInt64(dst []byte, v int64) []byte {
 	}
 	// math.MaxUint64 = 18446744073709551615 (len 20)
 	i := 21 // + 1 sign
-	var out [21]byte
+	out := growWindow(dst, 21)
 	var u, r, q uint64
 	if v < 0 {
 		u = -uint64(v)
@@ -54,7 +54,7 @@ func AppendUint64(dst []byte, v uint64) []byte {
 	}
 	// math.MaxUint64 = 18446744073709551615 (len 20)
 	i := 20
-	var out [20]byte
+	out := growWindow(dst, 20)
 	var r, q uint64
 	for v >= 100 {
 		q = v / 100

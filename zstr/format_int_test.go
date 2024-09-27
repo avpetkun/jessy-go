@@ -107,13 +107,13 @@ func BenchmarkFormatUint64(b *testing.B) {
 			b.Run("strconv", func(b *testing.B) {
 				b.ResetTimer()
 				for range b.N {
-					_ = strconv.AppendUint(buf[:0], bench.Value, 10)
+					buf = strconv.AppendUint(buf[:0], bench.Value, 10)
 				}
 			})
 			b.Run("custom", func(b *testing.B) {
 				b.ResetTimer()
 				for range b.N {
-					_ = AppendUint64(buf[:0], bench.Value)
+					buf = AppendUint64(buf[:0], bench.Value)
 				}
 			})
 		})
@@ -138,13 +138,13 @@ func BenchmarkFormatInt64(b *testing.B) {
 			b.Run("strconv", func(b *testing.B) {
 				b.ResetTimer()
 				for range b.N {
-					_ = strconv.AppendInt(buf[:0], bench.Value, 10)
+					buf = strconv.AppendInt(buf[:0], bench.Value, 10)
 				}
 			})
 			b.Run("custom", func(b *testing.B) {
 				b.ResetTimer()
 				for range b.N {
-					_ = AppendInt64(buf[:0], bench.Value)
+					buf = AppendInt64(buf[:0], bench.Value)
 				}
 			})
 		})
