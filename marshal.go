@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	MarshalMaxDeep uint32 = 10
+	MarshalMaxDeep uint32 = 20
 
 	customEncoders []customEncoder
 )
