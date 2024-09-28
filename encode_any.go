@@ -85,6 +85,10 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 		return marshalerEncoder(t, flags)
 	case tReallyImplements(tp, typeMarshaler):
 		return marshalerEncoder(tp, flags)
+	case tReallyImplements(t, typeAppendTextMarshaler):
+		return appendTextMarshalerEncoder(t, flags)
+	case tReallyImplements(tp, typeAppendTextMarshaler):
+		return appendTextMarshalerEncoder(tp, flags)
 	case tReallyImplements(t, typeTextMarshaler):
 		return textMarshalerEncoder(t, flags)
 	case tReallyImplements(tp, typeTextMarshaler):

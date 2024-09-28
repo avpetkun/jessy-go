@@ -64,9 +64,9 @@ func appendMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
 		}
-		newDst, err = i.AppendMarshalJSON(dst)
+		newDst, err = i.AppendJSON(dst)
 		if err != nil {
-			return dst, errors.Join(fmt.Errorf("failed to call AppendMarshalJSON of type <%s>", t), err)
+			return dst, errors.Join(fmt.Errorf("failed to call AppendJSON of type <%s>", t), err)
 		}
 		return newDst, nil
 	}
@@ -112,6 +112,33 @@ func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 		}
 		dst = append(dst, '"')
 		dst = append(dst, data...)
+		dst = append(dst, '"')
+		return dst, nil
+	}
+}
+
+func appendTextMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
+	omitEmpty := flags.Has(OmitEmpty)
+
+	getInterface := zgo.NewInterfacerFromRType[AppendTextMarshaler](t)
+	if getInterface == nil {
+		return nullEncoder
+	}
+
+	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		i := getInterface(v)
+		if i == nil {
+			if omitEmpty {
+				return dst, nil
+			}
+			return append(dst, 'n', 'u', 'l', 'l'), nil
+		}
+
+		dst = append(dst, '"')
+		dst, err := i.AppendText(dst)
+		if err != nil {
+			return dst, errors.Join(fmt.Errorf("failed to call AppendText of type <%s>", t), err)
+		}
 		dst = append(dst, '"')
 		return dst, nil
 	}

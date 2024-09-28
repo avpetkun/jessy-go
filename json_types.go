@@ -7,9 +7,11 @@ import (
 )
 
 var (
-	typeAppendMarshaler = reflect.TypeFor[AppendMarshaler]()
-	typeMarshaler       = reflect.TypeFor[Marshaler]()
-	typeTextMarshaler   = reflect.TypeFor[TextMarshaler]()
+	typeAppendMarshaler     = reflect.TypeFor[AppendMarshaler]()
+	typeAppendTextMarshaler = reflect.TypeFor[AppendMarshaler]()
+
+	typeMarshaler     = reflect.TypeFor[Marshaler]()
+	typeTextMarshaler = reflect.TypeFor[TextMarshaler]()
 
 	// TODO:
 	typeTextUnmarshaler = reflect.TypeFor[TextUnmarshaler]()
@@ -44,6 +46,9 @@ type (
 	Unmarshaler = json.Unmarshaler
 
 	AppendMarshaler interface {
-		AppendMarshalJSON(dst []byte) (newDst []byte, err error)
+		AppendJSON(dst []byte) (newDst []byte, err error)
+	}
+	AppendTextMarshaler interface {
+		AppendText(dst []byte) (newDst []byte, err error)
 	}
 )
