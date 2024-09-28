@@ -7,6 +7,8 @@ import (
 	"os"
 	"testing"
 
+	//_ "net/http/pprof"
+
 	"github.com/avpetkun/jessy-go/require"
 	"github.com/avpetkun/jessy-go/zgo"
 	"github.com/avpetkun/jessy-go/zstr"
@@ -143,7 +145,7 @@ type SliceStruct struct {
 
 type AppendMarshalVal struct{ data []byte }
 
-func (v AppendMarshalVal) AppendMarshalJSON(dst []byte) ([]byte, error) {
+func (v AppendMarshalVal) AppendJSON(dst []byte) ([]byte, error) {
 	return append(dst, v.data...), nil
 }
 
@@ -624,7 +626,7 @@ func TestMarshalLoop(t *testing.T) {
 
 	go http.ListenAndServe(":4114", nil)
 
-	v := getTestStruct()
+	v := getTestMoreStruct()
 	vp := &v
 
 	AddValueEncoder(func(flags Flags) ValueEncoder[[10]byte] {
