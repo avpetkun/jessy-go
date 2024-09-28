@@ -2,6 +2,7 @@ package jessy
 
 import (
 	"reflect"
+	"runtime"
 	"sync"
 	"unsafe"
 
@@ -29,7 +30,10 @@ func encodeAny(dst []byte, value any, flags Flags) ([]byte, error) {
 	if eface.Type == nil {
 		return append(dst, 'n', 'u', 'l', 'l'), nil
 	}
-	return getTypeEncoder(eface.Type, flags)(dst, eface.Data)
+	encode := getTypeEncoder(eface.Type, flags)
+	dst, err := encode(dst, eface.Data)
+	runtime.KeepAlive(value)
+	return dst, err
 }
 
 var encodersTypesCache [encodeFlagsLen]sync.Map
