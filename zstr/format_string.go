@@ -134,6 +134,67 @@ func AppendQuotedString(dst, src []byte, escapeHtml bool) []byte {
 	return dst
 }
 
+// from encoding/json.Compact
+func AppendCompactJSON(dst, src []byte, escapeHTML bool) []byte {
+	var inString bool
+	var skipNext bool
+	start := 0
+
+	for i, c := range src {
+		if escapeHTML && (c == '<' || c == '>' || c == '&') {
+			if start < i {
+				dst = append(dst, src[start:i]...)
+			}
+			dst = append(dst, '\\', 'u', '0', '0', encodeHexTable[c>>4], encodeHexTable[c&0xF])
+			start = i + 1
+			continue
+		}
+		// Convert U+2028 and U+2029 (E2 80 A8 and E2 80 A9).
+		if escapeHTML && c == 0xE2 && i+2 < len(src) && src[i+1] == 0x80 && src[i+2]&^1 == 0xA8 {
+			if start < i {
+				dst = append(dst, src[start:i]...)
+			}
+			dst = append(dst, '\\', 'u', '2', '0', '2', encodeHexTable[src[i+2]&0xF])
+			start = i + 3
+			continue
+		}
+		if !inString {
+			if c == '"' {
+				inString = true
+			} else if isSpace(c) {
+				if start < i {
+					dst = append(dst, src[start:i]...)
+				}
+				start = i + 1
+			}
+			continue
+		}
+		// skip already escaped char
+		if skipNext {
+			skipNext = false
+			continue
+		}
+		// char is escaped
+		if c == '\\' {
+			skipNext = true
+			continue
+		}
+		if c == '"' {
+			inString = false
+		}
+	}
+	if start < len(src) {
+		dst = append(dst, src[start:]...)
+	}
+	return dst
+}
+
+const spaceMask = (1 << ' ') | (1 << '\t') | (1 << '\r') | (1 << '\n')
+
+func isSpace(c byte) bool {
+	return spaceMask&(1<<c) != 0
+}
+
 var safeSet = [utf8.RuneSelf]bool{
 	' ':      true,
 	'!':      true,

@@ -15,10 +15,29 @@ func marshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	if getInterface == nil {
 		return nullEncoder
 	}
+	omitEmpty := flags.Has(OmitEmpty)
+	escapeHTML := flags.Has(EscapeHTML)
+
+	if flags.Has(CompactMarshaler) {
+		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+			i := getInterface(v)
+			if i == nil {
+				if omitEmpty {
+					return dst, nil
+				}
+				return append(dst, 'n', 'u', 'l', 'l'), nil
+			}
+			data, err := i.MarshalJSON()
+			if err != nil {
+				return dst, errors.Join(fmt.Errorf("failed to call MarshalJSON of type <%s>", t), err)
+			}
+			return zstr.AppendCompactJSON(dst, data, escapeHTML), nil
+		}
+	}
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		i := getInterface(v)
 		if i == nil {
-			if flags.Has(OmitEmpty) {
+			if omitEmpty {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
@@ -32,6 +51,7 @@ func marshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 }
 
 func appendMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
+	omitEmpty := flags.Has(OmitEmpty)
 	getInterface := zgo.NewInterfacerFromRType[AppendMarshaler](t)
 	if getInterface == nil {
 		return nullEncoder
@@ -39,7 +59,7 @@ func appendMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	return func(dst []byte, v unsafe.Pointer) (newDst []byte, err error) {
 		i := getInterface(v)
 		if i == nil {
-			if flags.Has(OmitEmpty) {
+			if omitEmpty {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
@@ -53,8 +73,9 @@ func appendMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 }
 
 func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
+	omitEmpty := flags.Has(OmitEmpty)
 	escapeHTML := flags.Has(EscapeHTML)
-	needValidate := flags.Has(ValidateTextMarshaller) || escapeHTML
+	needValidate := flags.Has(ValidateTextMarshaler) || escapeHTML
 
 	getInterface := zgo.NewInterfacerFromRType[TextMarshaler](t)
 	if getInterface == nil {
@@ -65,7 +86,7 @@ func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			i := getInterface(v)
 			if i == nil {
-				if flags.Has(OmitEmpty) {
+				if omitEmpty {
 					return dst, nil
 				}
 				return append(dst, 'n', 'u', 'l', 'l'), nil
@@ -80,7 +101,7 @@ func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		i := getInterface(v)
 		if i == nil {
-			if flags.Has(OmitEmpty) {
+			if omitEmpty {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil

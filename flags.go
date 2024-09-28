@@ -20,7 +20,8 @@ const (
 	SortMapKeys Flags = 1 << iota
 	EscapeHTML
 	ValidateString
-	ValidateTextMarshaller
+	ValidateTextMarshaler
+	CompactMarshaler
 	PrettySpaces
 
 	// while encoding
@@ -31,5 +32,5 @@ const (
 
 	// configs
 	EncodeFastest  = 0
-	EncodeStandard = SortMapKeys | EscapeHTML | ValidateString | ValidateTextMarshaller
+	EncodeStandard = SortMapKeys | EscapeHTML | ValidateString | ValidateTextMarshaler | CompactMarshaler
 )
