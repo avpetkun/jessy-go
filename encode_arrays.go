@@ -16,7 +16,6 @@ func sliceEncoder(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncode
 
 	prettySpaces := flags.Has(PrettySpaces)
 	omitEmpty := flags.Has(OmitEmpty)
-	flags = flags.excludes(OmitEmpty)
 
 	elemSize := uint(elem.Size())
 	elemEncoder := createItemTypeEncoder(deep, indent+1, flags, elem)
@@ -111,7 +110,7 @@ func arrayEncoder(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncode
 	elem := t.Elem()
 
 	elemSize := uint(elem.Size())
-	elemEncoder := createItemTypeEncoder(deep, indent, flags.excludes(OmitEmpty), elem)
+	elemEncoder := createItemTypeEncoder(deep, indent, flags, elem)
 
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		dst = append(dst, '[')

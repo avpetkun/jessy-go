@@ -57,7 +57,7 @@ func nullEncoder(dst []byte, v unsafe.Pointer) ([]byte, error) {
 
 func createItemTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type) UnsafeEncoder {
 	ifaceIndir := t.Kind() == reflect.Pointer || zgo.RTypeIfaceIndir(t)
-	return createTypeEncoder(deep, indent, flags, t, ifaceIndir, false)
+	return createTypeEncoder(deep, indent, flags.Exclude(OmitEmpty), t, ifaceIndir, false)
 }
 
 func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
@@ -147,7 +147,7 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 func pointerEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty) || embedded
 	needQuotes := flags.Has(NeedQuotes)
-	elemEncoder := createTypeEncoder(deep, indent, flags.excludes(OmitEmpty), t.Elem(), true, embedded)
+	elemEncoder := createTypeEncoder(deep, indent, flags.Exclude(OmitEmpty), t.Elem(), true, embedded)
 
 	if ifaceIndir {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {

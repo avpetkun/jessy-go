@@ -7,11 +7,8 @@ func (flags Flags) Has(flag Flags) bool {
 	return flags&flag != 0
 }
 
-func (flags Flags) excludes(flagsToExclude ...Flags) Flags {
-	for _, f := range flagsToExclude {
-		flags &^= f
-	}
-	return flags
+func (flags Flags) Exclude(exclude Flags) Flags {
+	return flags &^ exclude
 }
 
 // encoder flags

@@ -46,7 +46,6 @@ func mapUnpackedEncoder(deep, indent uint32, t reflect.Type, flags Flags) Unsafe
 
 func mapEncoderUnsorted(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
-	flags = flags.excludes(OmitEmpty)
 
 	encodeKey := createItemTypeEncoder(deep, indent+1, (flags | NeedQuotes), t.Key())
 	encodeVal := createItemTypeEncoder(deep, indent+1, flags, t.Elem())
@@ -120,7 +119,6 @@ func (p *mapSortBuf) Swap(i, j int)      { p.Pos[i], p.Pos[j] = p.Pos[j], p.Pos[
 
 func mapEncoderSorted(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
-	flags = flags.excludes(OmitEmpty)
 
 	encodeKey := createItemTypeEncoder(deep, indent+1, (flags | NeedQuotes), t.Key())
 	encodeVal := createItemTypeEncoder(deep, indent+1, flags, t.Elem())
@@ -215,7 +213,6 @@ func mapEncoderSorted(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEn
 
 func mapEncoderUnsortedPretty(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
-	flags = flags.excludes(OmitEmpty)
 
 	encodeKey := createItemTypeEncoder(deep, indent+1, (flags | NeedQuotes), t.Key())
 	encodeVal := createItemTypeEncoder(deep, indent+1, flags, t.Elem())
@@ -285,7 +282,6 @@ func mapEncoderUnsortedPretty(deep, indent uint32, t reflect.Type, flags Flags) 
 
 func mapEncoderSortedPretty(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
-	flags = flags.excludes(OmitEmpty)
 
 	encodeKey := createItemTypeEncoder(deep, indent+1, (flags | NeedQuotes), t.Key())
 	encodeVal := createItemTypeEncoder(deep, indent+1, flags, t.Elem())
