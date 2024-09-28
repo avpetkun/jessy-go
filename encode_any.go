@@ -145,10 +145,9 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 }
 
 func pointerEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
-	omitEmpty := flags.Has(OmitEmpty)
+	omitEmpty := flags.Has(OmitEmpty) || embedded
 	needQuotes := flags.Has(NeedQuotes)
-	flags = flags.excludes(OmitEmpty)
-	elemEncoder := createTypeEncoder(deep, indent, flags, t.Elem(), true, embedded)
+	elemEncoder := createTypeEncoder(deep, indent, flags.excludes(OmitEmpty), t.Elem(), true, embedded)
 
 	if ifaceIndir {
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
@@ -157,7 +156,7 @@ func pointerEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir
 				if needQuotes {
 					return append(dst, '"', '"'), nil
 				}
-				if omitEmpty || embedded {
+				if omitEmpty {
 					return dst, nil
 				}
 				return append(dst, 'n', 'u', 'l', 'l'), nil
@@ -170,7 +169,7 @@ func pointerEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir
 			if needQuotes {
 				return append(dst, '"', '"'), nil
 			}
-			if omitEmpty || embedded {
+			if omitEmpty {
 				return dst, nil
 			}
 			return append(dst, 'n', 'u', 'l', 'l'), nil
