@@ -1,0 +1,77 @@
+goos: darwin
+goarch: arm64
+pkg: benchmarks
+cpu: Apple M1 Pro
+BenchmarkBigMap
+BenchmarkBigMap/jessy
+BenchmarkBigMap/jessy/marshal-std
+BenchmarkBigMap/jessy/marshal-std-8                    3         454268528 ns/op        1505607178 B/op      174 allocs/op
+BenchmarkBigMap/jessy/marshal-fast
+BenchmarkBigMap/jessy/marshal-fast-8                   3         354278069 ns/op        1505591656 B/op       99 allocs/op
+BenchmarkBigMap/jessy/append-std
+BenchmarkBigMap/jessy/append-std-8                     3         357232056 ns/op        52804296 B/op         23 allocs/op
+BenchmarkBigMap/jessy/append-fast
+BenchmarkBigMap/jessy/append-fast-8                    5         238431200 ns/op             324 B/op          1 allocs/op
+BenchmarkBigMap/jessy/append-fast-pretty
+BenchmarkBigMap/jessy/append-fast-pretty-8             4         278480594 ns/op             498 B/op          2 allocs/op
+BenchmarkBigMap/jessy/encode-std
+BenchmarkBigMap/jessy/encode-std-8                     3         374672403 ns/op        554673170 B/op        71 allocs/op
+BenchmarkBigMap/jessy/encode-fast
+BenchmarkBigMap/jessy/encode-fast-8                    4         268933792 ns/op        376398620 B/op        26 allocs/op
+BenchmarkBigMap/sonic
+BenchmarkBigMap/sonic/std-marshal
+BenchmarkBigMap/sonic/std-marshal-8                    1        1145758041 ns/op        960644792 B/op      2283 allocs/op
+BenchmarkBigMap/sonic/std-encode
+BenchmarkBigMap/sonic/std-encode-8                     1        1036055500 ns/op        959938808 B/op        93 allocs/op
+BenchmarkBigMap/sonic/default-marshal
+BenchmarkBigMap/sonic/default-marshal-8                2         957267646 ns/op        702351608 B/op        53 allocs/op
+BenchmarkBigMap/sonic/default-encode
+BenchmarkBigMap/sonic/default-encode-8                 2         961508854 ns/op        720308456 B/op        54 allocs/op
+BenchmarkBigMap/sonic/fast-marshal
+BenchmarkBigMap/sonic/fast-marshal-8                   2         786487354 ns/op        489674524 B/op        46 allocs/op
+BenchmarkBigMap/sonic/fast-encode
+BenchmarkBigMap/sonic/fast-encode-8                    2         787539208 ns/op        489674500 B/op        47 allocs/op
+BenchmarkBigMap/jettison
+BenchmarkBigMap/jettison/marshal-full
+BenchmarkBigMap/jettison/marshal-full-8                3         495037069 ns/op        1137884640 B/op       96 allocs/op
+BenchmarkBigMap/jettison/marshal-fast
+BenchmarkBigMap/jettison/marshal-fast-8                4         322071375 ns/op        396453444 B/op        21 allocs/op
+BenchmarkBigMap/jettison/append-full
+BenchmarkBigMap/jettison/append-full-8                 2         593336334 ns/op        978035556 B/op        69 allocs/op
+BenchmarkBigMap/jettison/append-fast
+BenchmarkBigMap/jettison/append-fast-8                 4         300117146 ns/op             654 B/op          4 allocs/op
+BenchmarkBigMap/jsoniter
+BenchmarkBigMap/jsoniter/marshal-default
+BenchmarkBigMap/jsoniter/marshal-default-8             2         522315896 ns/op        761667024 B/op   5200031 allocs/op
+BenchmarkBigMap/jsoniter/marshal-fast
+BenchmarkBigMap/jsoniter/marshal-fast-8                2         511036042 ns/op        761667072 B/op   5200032 allocs/op
+BenchmarkBigMap/jsoniter/marshal-compat
+BenchmarkBigMap/jsoniter/marshal-compat-8              2         735432875 ns/op        1378305744 B/op  7700099 allocs/op
+BenchmarkBigMap/jsoniter/encode-default
+BenchmarkBigMap/jsoniter/encode-default-8              2         535076250 ns/op        559997264 B/op   5500005 allocs/op
+BenchmarkBigMap/jsoniter/encode-fast
+BenchmarkBigMap/jsoniter/encode-fast-8                 2         562346396 ns/op        559997256 B/op   5500004 allocs/op
+BenchmarkBigMap/jsoniter/encode-compat
+BenchmarkBigMap/jsoniter/encode-compat-8               2         727460646 ns/op        1468754256 B/op  7800105 allocs/op
+BenchmarkBigMap/jsoniter/borrow-default
+BenchmarkBigMap/jsoniter/borrow-default-8              2         545829980 ns/op        559999020 B/op   5500008 allocs/op
+BenchmarkBigMap/jsoniter/borrow-fast
+BenchmarkBigMap/jsoniter/borrow-fast-8                 2         550767146 ns/op        559999812 B/op   5500010 allocs/op
+BenchmarkBigMap/jsoniter/borrow-compat
+BenchmarkBigMap/jsoniter/borrow-compat-8               2         715511250 ns/op        898289448 B/op   7750079 allocs/op
+BenchmarkBigMap/gojson
+BenchmarkBigMap/gojson/marshal-full
+BenchmarkBigMap/gojson/marshal-full-8                  3         435076320 ns/op        796909792 B/op    200060 allocs/op
+BenchmarkBigMap/gojson/marshal-fast
+BenchmarkBigMap/gojson/marshal-fast-8                  3         359570167 ns/op        493964920 B/op    100043 allocs/op
+BenchmarkBigMap/gojson/encoder-full
+BenchmarkBigMap/gojson/encoder-full-8                  3         428514903 ns/op        640909090 B/op    200057 allocs/op
+BenchmarkBigMap/gojson/encoder-fast
+BenchmarkBigMap/gojson/encoder-fast-8                  4         310044864 ns/op         2400716 B/op     100002 allocs/op
+BenchmarkBigMap/encoding-json
+BenchmarkBigMap/encoding-json/marshal
+BenchmarkBigMap/encoding-json/marshal-8                2         554371792 ns/op        519644264 B/op   2700028 allocs/op
+BenchmarkBigMap/encoding-json/encoder-full
+BenchmarkBigMap/encoding-json/encoder-full-8                   2         551673958 ns/op        363644032 B/op   2700027 allocs/op
+BenchmarkBigMap/encoding-json/encoder-fast
+BenchmarkBigMap/encoding-json/encoder-fast-8                   2         518438312 ns/op        95207116 B/op    2700004 allocs/op

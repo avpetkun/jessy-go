@@ -1,0 +1,77 @@
+goos: darwin
+goarch: arm64
+pkg: benchmarks
+cpu: Apple M1 Pro
+BenchmarkMediumStruct
+BenchmarkMediumStruct/jessy
+BenchmarkMediumStruct/jessy/marshal-std
+BenchmarkMediumStruct/jessy/marshal-std-8              262863              4426 ns/op            9863 B/op         16 allocs/op
+BenchmarkMediumStruct/jessy/marshal-fast
+BenchmarkMediumStruct/jessy/marshal-fast-8             305684              3821 ns/op            9837 B/op         16 allocs/op
+BenchmarkMediumStruct/jessy/append-std
+BenchmarkMediumStruct/jessy/append-std-8               512982              2296 ns/op               0 B/op          0 allocs/op
+BenchmarkMediumStruct/jessy/append-fast
+BenchmarkMediumStruct/jessy/append-fast-8              678606              1732 ns/op               0 B/op          0 allocs/op
+BenchmarkMediumStruct/jessy/append-fast-pretty
+BenchmarkMediumStruct/jessy/append-fast-pretty-8       538339              2207 ns/op               0 B/op          0 allocs/op
+BenchmarkMediumStruct/jessy/encode-std
+BenchmarkMediumStruct/jessy/encode-std-8               510070              2308 ns/op               0 B/op          0 allocs/op
+BenchmarkMediumStruct/jessy/encode-fast
+BenchmarkMediumStruct/jessy/encode-fast-8              676512              1737 ns/op               0 B/op          0 allocs/op
+BenchmarkMediumStruct/sonic
+BenchmarkMediumStruct/sonic/std-marshal
+BenchmarkMediumStruct/sonic/std-marshal-8              118370             10042 ns/op            4351 B/op          3 allocs/op
+BenchmarkMediumStruct/sonic/std-encode
+BenchmarkMediumStruct/sonic/std-encode-8               122352              9698 ns/op            2776 B/op          3 allocs/op
+BenchmarkMediumStruct/sonic/default-marshal
+BenchmarkMediumStruct/sonic/default-marshal-8          138351              8614 ns/op            1609 B/op          2 allocs/op
+BenchmarkMediumStruct/sonic/default-encode
+BenchmarkMediumStruct/sonic/default-encode-8           144940              8182 ns/op              19 B/op          2 allocs/op
+BenchmarkMediumStruct/sonic/fast-marshal
+BenchmarkMediumStruct/sonic/fast-marshal-8             162864              7297 ns/op            1569 B/op          2 allocs/op
+BenchmarkMediumStruct/sonic/fast-encode
+BenchmarkMediumStruct/sonic/fast-encode-8              171952              6921 ns/op              17 B/op          2 allocs/op
+BenchmarkMediumStruct/jettison
+BenchmarkMediumStruct/jettison/marshal-full
+BenchmarkMediumStruct/jettison/marshal-full-8          319048              3698 ns/op            1542 B/op          1 allocs/op
+BenchmarkMediumStruct/jettison/marshal-fast
+BenchmarkMediumStruct/jettison/marshal-fast-8          402394              2893 ns/op            1601 B/op          2 allocs/op
+BenchmarkMediumStruct/jettison/append-full
+BenchmarkMediumStruct/jettison/append-full-8           357570              3302 ns/op               0 B/op          0 allocs/op
+BenchmarkMediumStruct/jettison/append-fast
+BenchmarkMediumStruct/jettison/append-fast-8           461553              2559 ns/op              64 B/op          1 allocs/op
+BenchmarkMediumStruct/jsoniter
+BenchmarkMediumStruct/jsoniter/marshal-default
+BenchmarkMediumStruct/jsoniter/marshal-default-8       246858              4757 ns/op            2793 B/op         54 allocs/op
+BenchmarkMediumStruct/jsoniter/marshal-fast
+BenchmarkMediumStruct/jsoniter/marshal-fast-8          248416              4650 ns/op            2793 B/op         54 allocs/op
+BenchmarkMediumStruct/jsoniter/marshal-compat
+BenchmarkMediumStruct/jsoniter/marshal-compat-8        175152              6744 ns/op            4565 B/op         78 allocs/op
+BenchmarkMediumStruct/jsoniter/encode-default
+BenchmarkMediumStruct/jsoniter/encode-default-8        239842              4815 ns/op            2856 B/op         55 allocs/op
+BenchmarkMediumStruct/jsoniter/encode-fast
+BenchmarkMediumStruct/jsoniter/encode-fast-8           246012              4696 ns/op            2856 B/op         55 allocs/op
+BenchmarkMediumStruct/jsoniter/encode-compat
+BenchmarkMediumStruct/jsoniter/encode-compat-8         160087              7601 ns/op            5231 B/op        101 allocs/op
+BenchmarkMediumStruct/jsoniter/borrow-default
+BenchmarkMediumStruct/jsoniter/borrow-default-8        247324              4844 ns/op            2857 B/op         55 allocs/op
+BenchmarkMediumStruct/jsoniter/borrow-fast
+BenchmarkMediumStruct/jsoniter/borrow-fast-8           249613              4805 ns/op            2857 B/op         55 allocs/op
+BenchmarkMediumStruct/jsoniter/borrow-compat
+BenchmarkMediumStruct/jsoniter/borrow-compat-8         153055              8000 ns/op            5231 B/op        101 allocs/op
+BenchmarkMediumStruct/gojson
+BenchmarkMediumStruct/gojson/marshal-full
+BenchmarkMediumStruct/gojson/marshal-full-8            326079              3595 ns/op            1802 B/op          3 allocs/op
+BenchmarkMediumStruct/gojson/marshal-fast
+BenchmarkMediumStruct/gojson/marshal-fast-8            362455              3074 ns/op            1562 B/op          2 allocs/op
+BenchmarkMediumStruct/gojson/encoder-full
+BenchmarkMediumStruct/gojson/encoder-full-8            384080              3040 ns/op             264 B/op          2 allocs/op
+BenchmarkMediumStruct/gojson/encoder-fast
+BenchmarkMediumStruct/gojson/encoder-fast-8            442569              2682 ns/op              24 B/op          1 allocs/op
+BenchmarkMediumStruct/encoding-json
+BenchmarkMediumStruct/encoding-json/marshal
+BenchmarkMediumStruct/encoding-json/marshal-8          226796              5120 ns/op            2434 B/op         27 allocs/op
+BenchmarkMediumStruct/encoding-json/encoder-full
+BenchmarkMediumStruct/encoding-json/encoder-full-8             249162              4813 ns/op             896 B/op         26 allocs/op
+BenchmarkMediumStruct/encoding-json/encoder-fast
+BenchmarkMediumStruct/encoding-json/encoder-fast-8             252438              4684 ns/op             896 B/op         26 allocs/op
