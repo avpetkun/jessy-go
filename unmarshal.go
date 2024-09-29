@@ -3,18 +3,22 @@ package jessy
 import (
 	"encoding/json"
 	"io"
+
+	"github.com/avpetkun/jessy-go/std"
 )
 
 // Valid reports whether data is a valid JSON encoding.
 func Valid(data []byte) bool {
-	return json.Valid(data)
+	return std.Valid(data)
 }
+
+type Decoder = json.Decoder
 
 // NewDecoder returns a new decoder that reads from r.
 //
 // The decoder introduces its own buffering and may
 // read data from r beyond the JSON values requested.
-func NewDecoder(r io.Reader) *json.Decoder {
+func NewDecoder(r io.Reader) *Decoder {
 	return json.NewDecoder(r)
 }
 
@@ -93,5 +97,10 @@ func NewDecoder(r io.Reader) *json.Decoder {
 // Instead, they are replaced by the Unicode replacement
 // character U+FFFD.
 func Unmarshal(data []byte, v any) error {
-	return json.Unmarshal(data, v)
+	return std.Unmarshal(data, v)
+}
+
+// Unmarshal without checks
+func UnmarshalTrusted(data []byte, v any) error {
+	return std.UnmarshalTrusted(data, v)
 }
