@@ -189,6 +189,67 @@ func AppendCompactJSON(dst, src []byte, escapeHTML bool) []byte {
 	return dst
 }
 
+func AppendIndent(dst, src []byte, prefix, indent string) []byte {
+	deep := 0
+	start := 0
+	lastIndentLen := 0
+	inString := false
+
+	dst = growCap(dst, len(src)*2)
+	dst = append(dst, prefix...)
+
+	for i := range src {
+		if inString {
+			inString = src[i] != '"' || src[i-1] == '\\'
+			continue
+		}
+		switch src[i] {
+		case '"':
+			inString = true
+		case '{', '[':
+			deep++
+			dst = append(dst, src[start:i+1]...)
+			start = i + 1
+			dstLen := len(dst)
+			dst = appendNewline(dst, prefix, indent, deep)
+			lastIndentLen = len(dst) - dstLen
+		case '}', ']':
+			dst = append(dst, src[start:i]...)
+			if lastIndentLen != 0 && i-start == 0 {
+				dst = dst[:len(dst)-lastIndentLen]
+				deep--
+			} else {
+				deep--
+				dst = appendNewline(dst, prefix, indent, deep)
+			}
+			dst = append(dst, src[i])
+			start = i + 1
+			lastIndentLen = 0
+		case ',':
+			dst = append(dst, src[start:i+1]...)
+			dst = appendNewline(dst, prefix, indent, deep)
+			start = i + 1
+		case ':':
+			dst = append(dst, src[start:i+1]...)
+			dst = append(dst, ' ')
+			start = i + 1
+		}
+	}
+
+	dst = append(dst, src[start:]...)
+
+	return dst
+}
+
+func appendNewline(dst []byte, prefix, indent string, deep int) []byte {
+	dst = append(dst, '\n')
+	dst = append(dst, prefix...)
+	for range deep {
+		dst = append(dst, indent...)
+	}
+	return dst
+}
+
 const spaceMask = (1 << ' ') | (1 << '\t') | (1 << '\r') | (1 << '\n')
 
 func isSpace(c byte) bool {

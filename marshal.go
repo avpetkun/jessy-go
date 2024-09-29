@@ -1,9 +1,10 @@
 package jessy
 
 import (
-	"bytes"
 	"reflect"
 	"unsafe"
+
+	"github.com/avpetkun/jessy-go/zstr"
 )
 
 var (
@@ -56,15 +57,12 @@ func MarshalFlags(value any, flags Flags) ([]byte, error) {
 	return encodeAny(nil, value, flags)
 }
 
-func MarshalIndent(v any, prefix, indent string) (data []byte, err error) {
-	data, err = Marshal(v)
-	if err != nil {
-		return
-	}
-	var buf bytes.Buffer
-	err = Indent(&buf, data, prefix, indent)
-	data = buf.Bytes()
-	return
+func MarshalIndent(value any, prefix, indent string) ([]byte, error) {
+	return AppendIndent(nil, value, prefix, indent)
+}
+
+func MarshalFastIndent(value any, prefix, indent string) ([]byte, error) {
+	return AppendFastIndent(nil, value, prefix, indent)
 }
 
 func Append(dst []byte, value any) ([]byte, error) {
@@ -85,4 +83,27 @@ func AppendFastPretty(dst []byte, value any) ([]byte, error) {
 
 func AppendFlags(dst []byte, value any, flags Flags) ([]byte, error) {
 	return encodeAny(dst, value, flags)
+}
+
+func AppendIndent(dst []byte, value any, prefix, indent string) ([]byte, error) {
+	return AppendIndentFlags(dst, value, EncodeStandard, prefix, indent)
+}
+
+func AppendFastIndent(dst []byte, value any, prefix, indent string) ([]byte, error) {
+	return AppendIndentFlags(dst, value, EncodeFastest, prefix, indent)
+}
+
+func AppendIndentFlags(dst []byte, value any, flags Flags, prefix, indent string) ([]byte, error) {
+	buf := encodeBufferPool.Get().(*encodeBuffer)
+
+	var err error
+	buf.marshalBuf, err = encodeAny(buf.marshalBuf, value, flags)
+	if err == nil {
+		dst = zstr.AppendIndent(dst, buf.marshalBuf, prefix, indent)
+	}
+
+	buf.marshalBuf = buf.marshalBuf[:0]
+	encodeBufferPool.Put(buf)
+
+	return dst, err
 }

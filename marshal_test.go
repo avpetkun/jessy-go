@@ -661,6 +661,20 @@ func BenchmarkMarshal(b *testing.B) {
 			buf, _ = AppendFast(buf[:0], value)
 		}
 	})
+	b.Run("jessy-fast-encoder", func(b *testing.B) {
+		e := NewEncoderWithFlags(io.Discard, EncodeFastest)
+		b.ResetTimer()
+		for range b.N {
+			e.Encode(value)
+		}
+	})
+	b.Run("jessy-fast-indent", func(b *testing.B) {
+		buf := make([]byte, 1024)
+		b.ResetTimer()
+		for range b.N {
+			buf, _ = AppendFastIndent(buf[:0], value, "", "\t")
+		}
+	})
 	b.Run("jessy-fast-pretty", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
