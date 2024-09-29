@@ -18,7 +18,7 @@ func AppendBase64String(dst, data []byte) []byte {
 	return dst
 }
 
-const encodeHexTable = "0123456789abcdef"
+const toHex = "0123456789abcdef"
 
 func AppendHexString(dst, data []byte) []byte {
 	size := len(data)*2 + 4
@@ -32,8 +32,8 @@ func AppendHexString(dst, data []byte) []byte {
 	i += 3
 
 	for _, v := range data {
-		dst[i] = encodeHexTable[v>>4]
-		dst[i+1] = encodeHexTable[v&0x0f]
+		dst[i] = toHex[v>>4]
+		dst[i+1] = toHex[v&0x0f]
 		i += 2
 	}
 	dst[i] = '"'
@@ -52,12 +52,32 @@ func AppendHex(dst, data []byte) []byte {
 	i += 2
 
 	for _, v := range data {
-		dst[i] = encodeHexTable[v>>4]
-		dst[i+1] = encodeHexTable[v&0x0f]
+		dst[i] = toHex[v>>4]
+		dst[i+1] = toHex[v&0x0f]
 		i += 2
 	}
 
 	return dst
+}
+
+func AppendHTMLEscape(dst, src []byte) []byte {
+	// The characters can only appear in string literals,
+	// so just scan the string one byte at a time.
+	start := 0
+	for i, c := range src {
+		if c == '<' || c == '>' || c == '&' {
+			dst = append(dst, src[start:i]...)
+			dst = append(dst, '\\', 'u', '0', '0', toHex[c>>4], toHex[c&0xF])
+			start = i + 1
+		}
+		// Convert U+2028 and U+2029 (E2 80 A8 and E2 80 A9).
+		if c == 0xE2 && i+2 < len(src) && src[i+1] == 0x80 && src[i+2]&^1 == 0xA8 {
+			dst = append(dst, src[start:i]...)
+			dst = append(dst, '\\', 'u', '2', '0', '2', toHex[src[i+2]&0xF])
+			start = i + len("\u2029")
+		}
+	}
+	return append(dst, src[start:]...)
 }
 
 // from encoding/json.AppendQuotedString
@@ -91,7 +111,7 @@ func AppendQuotedString(dst, src []byte, escapeHtml bool) []byte {
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON
 				// and served to some browsers.
-				dst = append(dst, '\\', 'u', '0', '0', encodeHexTable[b>>4], encodeHexTable[b&0xF])
+				dst = append(dst, '\\', 'u', '0', '0', toHex[b>>4], toHex[b&0xF])
 			}
 			i++
 			start = i
@@ -122,7 +142,7 @@ func AppendQuotedString(dst, src []byte, escapeHtml bool) []byte {
 		// See https://en.wikipedia.org/wiki/JSON#Safety.
 		if c == '\u2028' || c == '\u2029' {
 			dst = append(dst, src[start:i]...)
-			dst = append(dst, '\\', 'u', '2', '0', '2', encodeHexTable[c&0xF])
+			dst = append(dst, '\\', 'u', '2', '0', '2', toHex[c&0xF])
 			i += size
 			start = i
 			continue
@@ -145,7 +165,7 @@ func AppendCompactJSON(dst, src []byte, escapeHTML bool) []byte {
 			if start < i {
 				dst = append(dst, src[start:i]...)
 			}
-			dst = append(dst, '\\', 'u', '0', '0', encodeHexTable[c>>4], encodeHexTable[c&0xF])
+			dst = append(dst, '\\', 'u', '0', '0', toHex[c>>4], toHex[c&0xF])
 			start = i + 1
 			continue
 		}
@@ -154,7 +174,7 @@ func AppendCompactJSON(dst, src []byte, escapeHTML bool) []byte {
 			if start < i {
 				dst = append(dst, src[start:i]...)
 			}
-			dst = append(dst, '\\', 'u', '2', '0', '2', encodeHexTable[src[i+2]&0xF])
+			dst = append(dst, '\\', 'u', '2', '0', '2', toHex[src[i+2]&0xF])
 			start = i + 3
 			continue
 		}

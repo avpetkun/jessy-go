@@ -672,14 +672,14 @@ func BenchmarkMarshal(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
 		for range b.N {
-			buf, _ = AppendFastIndent(buf[:0], value, "", "\t")
+			buf, _ = AppendIndentFast(buf[:0], value, "", "\t")
 		}
 	})
 	b.Run("jessy-fast-pretty", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
 		for range b.N {
-			buf, _ = AppendFastPretty(buf[:0], value)
+			buf, _ = AppendPrettyFast(buf[:0], value)
 		}
 	})
 	b.Run("jessy-standard", func(b *testing.B) {
