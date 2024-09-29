@@ -52,26 +52,6 @@ func MarshalFastPretty(value any) ([]byte, error) {
 	return encodeAny(nil, value, EncodeFastest|PrettySpaces)
 }
 
-func AppendMarshal(dst []byte, value any) ([]byte, error) {
-	return encodeAny(dst, value, EncodeStandard)
-}
-
-func AppendMarshalPretty(dst []byte, value any) ([]byte, error) {
-	return encodeAny(dst, value, EncodeStandard|PrettySpaces)
-}
-
-func AppendMarshalFast(dst []byte, value any) ([]byte, error) {
-	return encodeAny(dst, value, EncodeFastest)
-}
-
-func AppendMarshalFastPretty(dst []byte, value any) ([]byte, error) {
-	return encodeAny(dst, value, EncodeFastest|PrettySpaces)
-}
-
-func AppendMarshalFlags(dst []byte, value any, flags Flags) ([]byte, error) {
-	return encodeAny(dst, value, flags)
-}
-
 func MarshalFlags(value any, flags Flags) ([]byte, error) {
 	return encodeAny(nil, value, flags)
 }
@@ -85,4 +65,24 @@ func MarshalIndent(v any, prefix, indent string) (data []byte, err error) {
 	err = Indent(&buf, data, prefix, indent)
 	data = buf.Bytes()
 	return
+}
+
+func Append(dst []byte, value any) ([]byte, error) {
+	return encodeAny(dst, value, EncodeStandard)
+}
+
+func AppendPretty(dst []byte, value any) ([]byte, error) {
+	return encodeAny(dst, value, EncodeStandard|PrettySpaces)
+}
+
+func AppendFast(dst []byte, value any) ([]byte, error) {
+	return encodeAny(dst, value, EncodeFastest)
+}
+
+func AppendFastPretty(dst []byte, value any) ([]byte, error) {
+	return encodeAny(dst, value, EncodeFastest|PrettySpaces)
+}
+
+func AppendFlags(dst []byte, value any, flags Flags) ([]byte, error) {
+	return encodeAny(dst, value, flags)
 }
