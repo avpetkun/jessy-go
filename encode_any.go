@@ -129,7 +129,7 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 		return uint16Encoder(flags)
 	case reflect.Uint32:
 		return uint32Encoder(flags)
-	case reflect.Uint64:
+	case reflect.Uint64, reflect.Uintptr:
 		return uint64Encoder(flags)
 	case reflect.Float32:
 		return float32Encoder(flags)
