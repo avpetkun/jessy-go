@@ -654,6 +654,18 @@ func BenchmarkMarshal(b *testing.B) {
 			_, _ = Hash(value)
 		}
 	})
+	b.Run("jessy-marshal", func(b *testing.B) {
+		b.ResetTimer()
+		for range b.N {
+			Marshal(value)
+		}
+	})
+	b.Run("jessy-marshal-fast", func(b *testing.B) {
+		b.ResetTimer()
+		for range b.N {
+			MarshalFast(value)
+		}
+	})
 	b.Run("jessy-fast", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
