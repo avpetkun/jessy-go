@@ -74,6 +74,9 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 	if t == timeType {
 		return timeEncoder(flags)
 	}
+	if t == typeBigInt {
+		return bigIntEncoder(flags)
+	}
 
 	tp := reflect.PointerTo(t)
 	switch {
