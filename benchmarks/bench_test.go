@@ -123,8 +123,6 @@ func runValueBenchmarks(b *testing.B, value any) {
 		})
 	})
 
-	return
-
 	b.Run("sonic", func(b *testing.B) {
 		b.Run("std-marshal", func(b *testing.B) {
 			for range b.N {
