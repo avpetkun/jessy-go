@@ -117,14 +117,14 @@ func (p *mapSortBuf) Len() int           { return len(p.Pos) }
 func (p *mapSortBuf) Less(i, j int) bool { return bytes.Compare(p.Pos[i], p.Pos[j]) == -1 }
 func (p *mapSortBuf) Swap(i, j int)      { p.Pos[i], p.Pos[j] = p.Pos[j], p.Pos[i] }
 
+var mapSortBufPool = sync.Pool{New: func() any { return new(mapSortBuf) }}
+
 func mapEncoderSorted(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 
 	encodeKey := createItemTypeEncoder(deep, indent+1, (flags | NeedQuotes), t.Key())
 	encodeVal := createItemTypeEncoder(deep, indent+1, flags, t.Elem())
 	getIterator := zgo.NewMapIteratorFromRType(t)
-
-	bufPool := sync.Pool{New: func() any { return new(mapSortBuf) }}
 
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 		it, count := getIterator(value)
@@ -142,7 +142,7 @@ func mapEncoderSorted(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEn
 		dst = append(dst, '{')
 		dstInitLen := len(dst)
 
-		buf := bufPool.Get().(*mapSortBuf)
+		buf := mapSortBufPool.Get().(*mapSortBuf)
 		buf.Pos = slices.Grow(buf.Pos, count)
 
 		var err error
@@ -152,7 +152,7 @@ func mapEncoderSorted(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEn
 			if err != nil {
 				it.Release()
 				buf.Pos = buf.Pos[:0]
-				bufPool.Put(buf)
+				mapSortBufPool.Put(buf)
 				return dst, err
 			}
 			if len(dst) == keyIndex {
@@ -166,7 +166,7 @@ func mapEncoderSorted(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEn
 			if err != nil {
 				it.Release()
 				buf.Pos = buf.Pos[:0]
-				bufPool.Put(buf)
+				mapSortBufPool.Put(buf)
 				return dst, err
 			}
 			if len(dst) == valIndex {
@@ -201,7 +201,7 @@ func mapEncoderSorted(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEn
 			dst[dstNewLen-1] = '}'
 		}
 
-		bufPool.Put(buf)
+		mapSortBufPool.Put(buf)
 
 		return dst, nil
 	}
@@ -290,8 +290,6 @@ func mapEncoderSortedPretty(deep, indent uint32, t reflect.Type, flags Flags) Un
 	deepSpaces0 := getIndent(indent)
 	deepSpaces1 := getIndent(indent + 1)
 
-	bufPool := sync.Pool{New: func() any { return new(mapSortBuf) }}
-
 	return func(dst []byte, value unsafe.Pointer) ([]byte, error) {
 		it, count := getIterator(value)
 		if it == nil {
@@ -308,7 +306,7 @@ func mapEncoderSortedPretty(deep, indent uint32, t reflect.Type, flags Flags) Un
 		dst = append(dst, '{', '\n')
 		dstInitLen := len(dst)
 
-		buf := bufPool.Get().(*mapSortBuf)
+		buf := mapSortBufPool.Get().(*mapSortBuf)
 		buf.Pos = slices.Grow(buf.Pos, count)
 
 		var err error
@@ -319,7 +317,7 @@ func mapEncoderSortedPretty(deep, indent uint32, t reflect.Type, flags Flags) Un
 			if err != nil {
 				it.Release()
 				buf.Pos = buf.Pos[:0]
-				bufPool.Put(buf)
+				mapSortBufPool.Put(buf)
 				return dst, err
 			}
 			if len(dst) == keyIndex {
@@ -333,7 +331,7 @@ func mapEncoderSortedPretty(deep, indent uint32, t reflect.Type, flags Flags) Un
 			if err != nil {
 				it.Release()
 				buf.Pos = buf.Pos[:0]
-				bufPool.Put(buf)
+				mapSortBufPool.Put(buf)
 				return dst, err
 			}
 			if len(dst) == valIndex {
@@ -371,7 +369,7 @@ func mapEncoderSortedPretty(deep, indent uint32, t reflect.Type, flags Flags) Un
 			dst = append(dst, '}')
 		}
 
-		bufPool.Put(buf)
+		mapSortBufPool.Put(buf)
 
 		return dst, nil
 	}
