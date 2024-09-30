@@ -47,6 +47,42 @@ func BenchmarkBigMap(b *testing.B) {
 }
 
 func runValueBenchmarks(b *testing.B, value any) {
+	buf := make([]byte, 0, 3000000000)
+
+	jessyStdEnc := jessy.NewEncoder(io.Discard)
+	jessyFastEnc := jessy.NewEncoderWithFlags(io.Discard, jessy.EncodeFastest)
+
+	sonicStd := sonic.ConfigStd
+	sonicDef := sonic.ConfigDefault
+	sonicFast := sonic.ConfigFastest
+	sonicStdEnc := sonicStd.NewEncoder(io.Discard)
+	sonicDefEnc := sonicDef.NewEncoder(io.Discard)
+	sonicFastEnc := sonicFast.NewEncoder(io.Discard)
+
+	jettisonFastOpts := []jettison.Option{
+		jettison.UnsortedMap(),
+		jettison.NoCompact(),
+		jettison.NoHTMLEscaping(),
+		jettison.NoStringEscaping(),
+		jettison.NoUTF8Coercion(),
+	}
+
+	jsoniterDef := jsoniter.ConfigDefault
+	jsoniterFast := jsoniter.ConfigFastest
+	jsoniterCompat := jsoniter.ConfigCompatibleWithStandardLibrary
+	jsoniterDefEnc := jsoniterDef.NewEncoder(io.Discard)
+	jsoniterFastEnc := jsoniterFast.NewEncoder(io.Discard)
+	jsoniterCompatEnc := jsoniterCompat.NewEncoder(io.Discard)
+
+	gojsonEnc := gojson.NewEncoder(io.Discard)
+	gojsonFastOpts := []gojson.EncodeOptionFunc{
+		gojson.DisableHTMLEscape(), gojson.DisableNormalizeUTF8(), gojson.UnorderedMap(),
+	}
+
+	stdJsonEnc := json.NewEncoder(io.Discard)
+	stdJsonFastEnc := json.NewEncoder(io.Discard)
+	stdJsonFastEnc.SetEscapeHTML(false)
+
 	b.ResetTimer()
 
 	b.Run("jessy", func(b *testing.B) {
@@ -61,92 +97,68 @@ func runValueBenchmarks(b *testing.B, value any) {
 			}
 		})
 		b.Run("append-std", func(b *testing.B) {
-			buf := make([]byte, 0, 3000000000)
-			b.ResetTimer()
 			for range b.N {
 				buf, _ = jessy.Append(buf[:0], value)
 			}
 		})
 		b.Run("append-fast", func(b *testing.B) {
-			buf := make([]byte, 0, 3000000000)
-			b.ResetTimer()
 			for range b.N {
 				buf, _ = jessy.AppendFast(buf[:0], value)
 			}
 		})
 		b.Run("append-fast-pretty", func(b *testing.B) {
-			buf := make([]byte, 0, 3000000000)
-			b.ResetTimer()
 			for range b.N {
 				buf, _ = jessy.AppendPrettyFast(buf[:0], value)
 			}
 		})
 		b.Run("encode-std", func(b *testing.B) {
-			e := jessy.NewEncoder(io.Discard)
-			e.Grow(3000000000)
-			b.ResetTimer()
 			for range b.N {
-				e.Encode(value)
+				jessyStdEnc.Encode(value)
 			}
 		})
 		b.Run("encode-fast", func(b *testing.B) {
-			e := jessy.NewEncoderWithFlags(io.Discard, jessy.EncodeFastest)
-			e.Grow(3000000000)
-			b.ResetTimer()
 			for range b.N {
-				e.Encode(value)
+				jessyFastEnc.Encode(value)
 			}
 		})
 	})
 
+	return
+
 	b.Run("sonic", func(b *testing.B) {
-		std := sonic.ConfigStd
-		def := sonic.ConfigDefault
-		fast := sonic.ConfigFastest
-		stdEnc := std.NewEncoder(io.Discard)
-		defEnc := def.NewEncoder(io.Discard)
-		fastEnc := fast.NewEncoder(io.Discard)
-		b.ResetTimer()
 		b.Run("std-marshal", func(b *testing.B) {
 			for range b.N {
-				std.Marshal(value)
+				sonicStd.Marshal(value)
 			}
 		})
 		b.Run("std-encode", func(b *testing.B) {
 			for range b.N {
-				stdEnc.Encode(value)
+				sonicStdEnc.Encode(value)
 			}
 		})
 		b.Run("default-marshal", func(b *testing.B) {
 			for range b.N {
-				def.Marshal(value)
+				sonicDef.Marshal(value)
 			}
 		})
 		b.Run("default-encode", func(b *testing.B) {
 			for range b.N {
-				defEnc.Encode(value)
+				sonicDefEnc.Encode(value)
 			}
 		})
 		b.Run("fast-marshal", func(b *testing.B) {
 			for range b.N {
-				fast.Marshal(value)
+				sonicFast.Marshal(value)
 			}
 		})
 		b.Run("fast-encode", func(b *testing.B) {
 			for range b.N {
-				fastEnc.Encode(value)
+				sonicFastEnc.Encode(value)
 			}
 		})
 	})
 
 	b.Run("jettison", func(b *testing.B) {
-		fastOpts := []jettison.Option{
-			jettison.UnsortedMap(),
-			jettison.NoCompact(),
-			jettison.NoHTMLEscaping(),
-			jettison.NoStringEscaping(),
-			jettison.NoUTF8Coercion(),
-		}
 		b.Run("marshal-full", func(b *testing.B) {
 			for range b.N {
 				jettison.Marshal(value)
@@ -154,93 +166,78 @@ func runValueBenchmarks(b *testing.B, value any) {
 		})
 		b.Run("marshal-fast", func(b *testing.B) {
 			for range b.N {
-				jettison.MarshalOpts(value, fastOpts...)
+				jettison.MarshalOpts(value, jettisonFastOpts...)
 			}
 		})
 		b.Run("append-full", func(b *testing.B) {
-			buf := make([]byte, 0, 3000000000)
-			b.ResetTimer()
 			for range b.N {
 				buf, _ = jettison.Append(buf[:0], value)
 			}
 		})
 		b.Run("append-fast", func(b *testing.B) {
-			buf := make([]byte, 0, 3000000000)
-			b.ResetTimer()
 			for range b.N {
-				buf, _ = jettison.AppendOpts(buf[:0], value, fastOpts...)
+				buf, _ = jettison.AppendOpts(buf[:0], value, jettisonFastOpts...)
 			}
 		})
 	})
 
 	b.Run("jsoniter", func(b *testing.B) {
-		def := jsoniter.ConfigDefault
-		fast := jsoniter.ConfigFastest
-		compat := jsoniter.ConfigCompatibleWithStandardLibrary
-		defEnc := def.NewEncoder(io.Discard)
-		fastEnc := fast.NewEncoder(io.Discard)
-		compatEnc := compat.NewEncoder(io.Discard)
-		b.ResetTimer()
-
 		b.Run("marshal-default", func(b *testing.B) {
 			for range b.N {
-				def.Marshal(value)
+				jsoniterDef.Marshal(value)
 			}
 		})
 		b.Run("marshal-fast", func(b *testing.B) {
 			for range b.N {
-				fast.Marshal(value)
+				jsoniterFast.Marshal(value)
 			}
 		})
 		b.Run("marshal-compat", func(b *testing.B) {
 			for range b.N {
-				compat.Marshal(value)
+				jsoniterCompat.Marshal(value)
 			}
 		})
 
 		b.Run("encode-default", func(b *testing.B) {
 			for range b.N {
-				defEnc.Encode(value)
+				jsoniterDefEnc.Encode(value)
 			}
 		})
 		b.Run("encode-fast", func(b *testing.B) {
 			for range b.N {
-				fastEnc.Encode(value)
+				jsoniterFastEnc.Encode(value)
 			}
 		})
 		b.Run("encode-compat", func(b *testing.B) {
 			for range b.N {
-				compatEnc.Encode(value)
+				jsoniterCompatEnc.Encode(value)
 			}
 		})
 
 		b.Run("borrow-default", func(b *testing.B) {
 			for range b.N {
-				s := def.BorrowStream(io.Discard)
+				s := jsoniterDef.BorrowStream(io.Discard)
 				s.WriteVal(value)
-				def.ReturnStream(s)
+				jsoniterDef.ReturnStream(s)
 			}
 		})
 		b.Run("borrow-fast", func(b *testing.B) {
 			for range b.N {
-				s := fast.BorrowStream(io.Discard)
+				s := jsoniterFast.BorrowStream(io.Discard)
 				s.WriteVal(value)
-				fast.ReturnStream(s)
+				jsoniterFast.ReturnStream(s)
 			}
 		})
 		b.Run("borrow-compat", func(b *testing.B) {
 			for range b.N {
-				s := compat.BorrowStream(io.Discard)
+				s := jsoniterCompat.BorrowStream(io.Discard)
 				s.WriteVal(value)
-				compat.ReturnStream(s)
+				jsoniterCompat.ReturnStream(s)
 			}
 		})
 	})
 
 	b.Run("gojson", func(b *testing.B) {
-		fastOpts := []gojson.EncodeOptionFunc{
-			gojson.DisableHTMLEscape(), gojson.DisableNormalizeUTF8(), gojson.UnorderedMap(),
-		}
 		b.Run("marshal-full", func(b *testing.B) {
 			for range b.N {
 				gojson.Marshal(value)
@@ -248,21 +245,17 @@ func runValueBenchmarks(b *testing.B, value any) {
 		})
 		b.Run("marshal-fast", func(b *testing.B) {
 			for range b.N {
-				gojson.MarshalWithOption(value, fastOpts...)
+				gojson.MarshalWithOption(value, gojsonFastOpts...)
 			}
 		})
 		b.Run("encoder-full", func(b *testing.B) {
-			enc := gojson.NewEncoder(io.Discard)
-			b.ResetTimer()
 			for range b.N {
-				enc.Encode(value)
+				gojsonEnc.Encode(value)
 			}
 		})
 		b.Run("encoder-fast", func(b *testing.B) {
-			enc := gojson.NewEncoder(io.Discard)
-			b.ResetTimer()
 			for range b.N {
-				enc.EncodeWithOption(value, fastOpts...)
+				gojsonEnc.EncodeWithOption(value, gojsonFastOpts...)
 			}
 		})
 	})
@@ -274,18 +267,14 @@ func runValueBenchmarks(b *testing.B, value any) {
 			}
 		})
 		b.Run("encoder-full", func(b *testing.B) {
-			enc := json.NewEncoder(io.Discard)
-			b.ResetTimer()
 			for range b.N {
-				enc.Encode(value)
+				stdJsonEnc.Encode(value)
 			}
 		})
 		b.Run("encoder-fast", func(b *testing.B) {
-			enc := json.NewEncoder(io.Discard)
-			enc.SetEscapeHTML(false)
 			b.ResetTimer()
 			for range b.N {
-				enc.Encode(value)
+				stdJsonFastEnc.Encode(value)
 			}
 		})
 	})
