@@ -1,6 +1,11 @@
 package jessy
 
-import "github.com/avpetkun/jessy-go/zstr"
+import (
+	"bytes"
+	"sync"
+
+	"github.com/avpetkun/jessy-go/zstr"
+)
 
 func MarshalIndent(value any, prefix, indent string) ([]byte, error) {
 	return AppendIndent(nil, value, prefix, indent)
@@ -18,17 +23,17 @@ func AppendIndentFast(dst []byte, value any, prefix, indent string) ([]byte, err
 	return AppendIndentFlags(dst, value, EncodeFastest, prefix, indent)
 }
 
-func AppendIndentFlags(dst []byte, value any, flags Flags, prefix, indent string) ([]byte, error) {
-	buf := encodeBufferPool.Get().(*encodeBuffer)
-
-	var err error
-	buf.marshalBuf, err = encodeAny(buf.marshalBuf, value, flags)
+func AppendIndentFlags(dst []byte, value any, flags Flags, prefix, indent string) (data []byte, err error) {
+	buf := appendIndentBuf.Get().(*bytes.Buffer)
+	data = buf.AvailableBuffer()
+	data, err = encodeAny(data, value, flags)
 	if err == nil {
-		dst = zstr.AppendIndent(dst, buf.marshalBuf, prefix, indent)
+		dst = zstr.AppendIndent(dst, data, prefix, indent)
 	}
-
-	buf.marshalBuf = buf.marshalBuf[:0]
-	encodeBufferPool.Put(buf)
-
+	buf.Grow(len(data))
+	buf.Reset()
+	appendIndentBuf.Put(buf)
 	return dst, err
 }
+
+var appendIndentBuf = sync.Pool{New: func() any { return new(bytes.Buffer) }}

@@ -2,7 +2,7 @@ package jessy
 
 import (
 	"io"
-	"sync"
+	"slices"
 
 	"github.com/avpetkun/jessy-go/zstr"
 )
@@ -22,31 +22,35 @@ type Encoder struct {
 
 	indentPrefix string
 	indentValue  string
+
+	marshalBuf []byte
+	indentBuf  []byte
 }
 
 var encoderEndline = []byte{'\n'}
 
 func (e *Encoder) Encode(value any) (err error) {
-	buf := encodeBufferPool.Get().(*encodeBuffer)
-
-	buf.marshalBuf, err = encodeAny(buf.marshalBuf, value, e.flags)
+	e.marshalBuf, err = encodeAny(e.marshalBuf[:0], value, e.flags)
 	if err == nil {
 		if len(e.indentPrefix) == 0 && len(e.indentValue) == 0 {
-			_, err = e.Write(buf.marshalBuf)
+			_, err = e.Write(e.marshalBuf)
 		} else {
-			buf.indentBuf = zstr.AppendIndent(buf.indentBuf, buf.marshalBuf, e.indentPrefix, e.indentValue)
-			_, err = e.Write(buf.indentBuf)
+			e.indentBuf = zstr.AppendIndent(e.indentBuf[:0], e.marshalBuf, e.indentPrefix, e.indentValue)
+			_, err = e.Write(e.indentBuf)
 		}
 	}
 	if err == nil {
 		_, err = e.Write(encoderEndline)
 	}
-
-	buf.marshalBuf = buf.marshalBuf[:0]
-	buf.indentBuf = buf.indentBuf[:0]
-	encodeBufferPool.Put(buf)
-
 	return
+}
+
+func (e *Encoder) Grow(size int) {
+	e.marshalBuf = slices.Grow(e.marshalBuf, size)
+}
+
+func (e *Encoder) GrowIndent(size int) {
+	e.indentBuf = slices.Grow(e.indentBuf, size)
 }
 
 func (e *Encoder) SetEscapeHTML(on bool) {
@@ -80,11 +84,4 @@ func (e *Encoder) SetPrettyFlags(on bool) {
 func (e *Encoder) SetIndent(prefix, indent string) {
 	e.indentPrefix = prefix
 	e.indentValue = indent
-}
-
-var encodeBufferPool = sync.Pool{New: func() any { return new(encodeBuffer) }}
-
-type encodeBuffer struct {
-	marshalBuf []byte
-	indentBuf  []byte
 }

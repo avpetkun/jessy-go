@@ -83,14 +83,15 @@ func runValueBenchmarks(b *testing.B, value any) {
 		})
 		b.Run("encode-std", func(b *testing.B) {
 			e := jessy.NewEncoder(io.Discard)
+			e.Grow(3000000000)
 			b.ResetTimer()
 			for range b.N {
 				e.Encode(value)
 			}
 		})
 		b.Run("encode-fast", func(b *testing.B) {
-			e := jessy.NewEncoder(io.Discard)
-			e.SetFastestFlags()
+			e := jessy.NewEncoderWithFlags(io.Discard, jessy.EncodeFastest)
+			e.Grow(3000000000)
 			b.ResetTimer()
 			for range b.N {
 				e.Encode(value)
