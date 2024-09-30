@@ -35,7 +35,8 @@ func (e *Encoder) Encode(value any) (err error) {
 		if len(e.indentPrefix) == 0 && len(e.indentValue) == 0 {
 			_, err = e.Write(e.marshalBuf)
 		} else {
-			e.indentBuf = zstr.AppendIndent(e.indentBuf[:0], e.marshalBuf, e.indentPrefix, e.indentValue)
+			e.indentBuf = slices.Grow(e.indentBuf[:0], len(e.marshalBuf)*2)
+			e.indentBuf = zstr.AppendIndent(e.indentBuf, e.marshalBuf, e.indentPrefix, e.indentValue)
 			_, err = e.Write(e.indentBuf)
 		}
 	}

@@ -1,8 +1,13 @@
 package jessy
 
 import (
+	"bytes"
 	"reflect"
+	"slices"
+	"sync"
 	"unsafe"
+
+	"github.com/avpetkun/jessy-go/zstr"
 )
 
 var (
@@ -36,23 +41,31 @@ func AddValueEncoder[T any](encoder func(flags Flags) ValueEncoder[T]) {
 }
 
 func Marshal(value any) ([]byte, error) {
-	return encodeAny(nil, value, EncodeStandard)
+	return MarshalFlags(value, EncodeStandard)
 }
 
 func MarshalFast(value any) ([]byte, error) {
-	return encodeAny(nil, value, EncodeFastest)
+	return MarshalFlags(value, EncodeFastest)
 }
 
 func MarshalPretty(value any) ([]byte, error) {
-	return encodeAny(nil, value, EncodeStandard|PrettySpaces)
+	return MarshalFlags(value, EncodeStandard|PrettySpaces)
 }
 
 func MarshalPrettyFast(value any) ([]byte, error) {
-	return encodeAny(nil, value, EncodeFastest|PrettySpaces)
+	return MarshalFlags(value, EncodeFastest|PrettySpaces)
 }
 
-func MarshalFlags(value any, flags Flags) ([]byte, error) {
-	return encodeAny(nil, value, flags)
+func MarshalFlags(value any, flags Flags) (dst []byte, err error) {
+	buf := getMarshalBuf()
+	data, err := encodeAny(buf.AvailableBuffer(), value, flags)
+	if err == nil {
+		buf.Grow(len(data))
+		dst = make([]byte, len(data))
+		copy(dst, data)
+	}
+	putMarshalBuf(buf)
+	return dst, err
 }
 
 func Append(dst []byte, value any) ([]byte, error) {
@@ -73,4 +86,48 @@ func AppendPrettyFast(dst []byte, value any) ([]byte, error) {
 
 func AppendFlags(dst []byte, value any, flags Flags) ([]byte, error) {
 	return encodeAny(dst, value, flags)
+}
+
+func MarshalIndent(value any, prefix, indent string) ([]byte, error) {
+	return AppendIndent(nil, value, prefix, indent)
+}
+
+func MarshalIndentFast(value any, prefix, indent string) ([]byte, error) {
+	return AppendIndentFast(nil, value, prefix, indent)
+}
+
+func MarshalIndentFlags(value any, flags Flags, prefix, indent string) ([]byte, error) {
+	return AppendIndentFlags(nil, value, flags, prefix, indent)
+}
+
+func AppendIndent(dst []byte, value any, prefix, indent string) ([]byte, error) {
+	return AppendIndentFlags(dst, value, EncodeStandard, prefix, indent)
+}
+
+func AppendIndentFast(dst []byte, value any, prefix, indent string) ([]byte, error) {
+	return AppendIndentFlags(dst, value, EncodeFastest, prefix, indent)
+}
+
+func AppendIndentFlags(dst []byte, value any, flags Flags, prefix, indent string) (data []byte, err error) {
+	buf := getMarshalBuf()
+	data = buf.AvailableBuffer()
+	data, err = encodeAny(data, value, flags)
+	if err == nil {
+		dst = slices.Grow(dst, len(data)*2)
+		dst = zstr.AppendIndent(dst, data, prefix, indent)
+	}
+	buf.Grow(len(data))
+	putMarshalBuf(buf)
+	return dst, err
+}
+
+var marshalBufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
+
+func getMarshalBuf() *bytes.Buffer {
+	return marshalBufPool.Get().(*bytes.Buffer)
+}
+
+func putMarshalBuf(buf *bytes.Buffer) {
+	buf.Reset()
+	marshalBufPool.Put(buf)
 }
