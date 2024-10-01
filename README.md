@@ -139,7 +139,14 @@ import (
 json.Marshal(data)
 ```
 
-## TODO:
+## Features
+
+In addition to the mentioned benefits, the library also:
+
+- Can marshal complex numbers
+- Can marshal maps with any key type
+
+## TODO
 
 - Extend the philosophy to the **Unmarshal** process
 
