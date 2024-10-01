@@ -139,6 +139,10 @@ import (
 json.Marshal(data)
 ```
 
+## TODO:
+
+- Extend the philosophy to the **Unmarshal** process
+
 # How to get
 
 ```
