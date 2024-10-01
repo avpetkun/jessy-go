@@ -75,7 +75,7 @@ func getStructFields(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndi
 }
 
 func structEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
-	if deep++; deep >= MarshalMaxDeep {
+	if deep++; deep >= marshalMaxDeep {
 		return nopEncoder
 	}
 

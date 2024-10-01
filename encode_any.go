@@ -38,6 +38,12 @@ func encodeAny(dst []byte, value any, flags Flags) ([]byte, error) {
 
 var encodersTypesCache [encodeFlagsLen]sync.Map
 
+func ResetEncodersCache() {
+	for i := range encodersTypesCache {
+		encodersTypesCache[i] = sync.Map{}
+	}
+}
+
 func getTypeEncoder(typ *zgo.Type, flags Flags) UnsafeEncoder {
 	if val, ok := encodersTypesCache[flags].Load(typ); ok {
 		return val.(UnsafeEncoder)

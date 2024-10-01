@@ -11,10 +11,18 @@ import (
 )
 
 var (
-	MarshalMaxDeep uint32 = 20
+	marshalMaxDeep uint32 = 20
 
 	customEncoders []customEncoder
 )
+
+func SetMarshalMaxDeep(deep int) {
+	if deep < 1 {
+		panic("marshal max deep must be > 0")
+	}
+	marshalMaxDeep = uint32(deep)
+	ResetEncodersCache()
+}
 
 type UnsafeEncoder func(dst []byte, value unsafe.Pointer) ([]byte, error)
 type ValueEncoder[T any] func(dst []byte, value T) ([]byte, error)

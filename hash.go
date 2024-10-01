@@ -90,7 +90,7 @@ func interfaceHashEncoder(h *hashSum64, value unsafe.Pointer) error {
 }
 
 func structHashEncoder(deep uint32, t reflect.Type, ifaceIndir bool) hashEncoder {
-	if deep++; deep >= MarshalMaxDeep {
+	if deep++; deep >= marshalMaxDeep {
 		return nopHashEncoder
 	}
 
