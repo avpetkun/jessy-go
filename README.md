@@ -160,6 +160,7 @@ In addition to the mentioned benefits, the library also:
 
 - Extend the philosophy to the **Unmarshal** process
 - Optimize memory usage for map keys sorting
+- Add more code comments
 
 # How to get
 
