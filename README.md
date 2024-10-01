@@ -139,6 +139,16 @@ import (
 json.Marshal(data)
 ```
 
+## Hash
+
+You can get fnv hash by all struct values
+
+```go
+import "github.com/avpetkun/jessy-go"
+
+hash, err := jessy.Hash(struct{A int}{123})
+```
+
 ## Features
 
 In addition to the mentioned benefits, the library also:
