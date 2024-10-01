@@ -1,4 +1,4 @@
-**Jessy** is a high-performance JSON library for Go, focused on speed and reduced memory usage. It's a drop-in replacement for **_encoding/json_**
+**Jessy** is a high-performance JSON library for Go, focused on speed and reduced memory usage. It's a drop-in replacement for **_encoding/json_** and doesn't have dependencies
 
 Before diving into the details, let's start with some metrics
 
