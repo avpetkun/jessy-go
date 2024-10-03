@@ -46,6 +46,20 @@ func (e *Encoder) Encode(value any) (err error) {
 	return
 }
 
+func (e *Encoder) EncodeRaw(value any) (data []byte, err error) {
+	e.marshalBuf, err = encodeAny(e.marshalBuf[:0], value, e.flags)
+	if err == nil {
+		if len(e.indentPrefix) == 0 && len(e.indentValue) == 0 {
+			data = e.marshalBuf
+		} else {
+			e.indentBuf = slices.Grow(e.indentBuf[:0], len(e.marshalBuf)*2)
+			e.indentBuf = zstr.AppendIndent(e.indentBuf, e.marshalBuf, e.indentPrefix, e.indentValue)
+			data = e.indentBuf
+		}
+	}
+	return
+}
+
 func (e *Encoder) Reset(w io.Writer) {
 	e.Writer = w
 }
