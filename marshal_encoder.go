@@ -46,6 +46,10 @@ func (e *Encoder) Encode(value any) (err error) {
 	return
 }
 
+func (e *Encoder) Reset(w io.Writer) {
+	e.Writer = w
+}
+
 func (e *Encoder) Grow(size int) {
 	e.marshalBuf = slices.Grow(e.marshalBuf, size)
 }
