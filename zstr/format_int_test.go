@@ -132,7 +132,7 @@ func BenchmarkFormatInt64(b *testing.B) {
 		{Name: "9223372036854775807", Value: math.MaxInt64},
 		{Name: "-9223372036854775808", Value: math.MinInt64},
 	}
-	buf := make([]byte, 20)
+	buf := make([]byte, 21)
 	for _, bench := range benchs {
 		b.Run(bench.Name, func(b *testing.B) {
 			b.Run("strconv", func(b *testing.B) {
