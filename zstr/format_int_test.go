@@ -64,13 +64,13 @@ func BenchmarkFormatUint8(b *testing.B) {
 	buf := make([]byte, 3)
 	b.Run("strconv", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf = strconv.AppendUint(buf[:0], 123, 10)
 		}
 	})
 	b.Run("custom", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf = AppendUint8(buf[:0], 123)
 		}
 	})
@@ -80,13 +80,13 @@ func BenchmarkFormatInt8(b *testing.B) {
 	buf := make([]byte, 4)
 	b.Run("strconv", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf = strconv.AppendInt(buf[:0], -123, 10)
 		}
 	})
 	b.Run("custom", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf = AppendInt8(buf[:0], -123)
 		}
 	})
@@ -106,13 +106,13 @@ func BenchmarkFormatUint64(b *testing.B) {
 		b.Run(bench.Name, func(b *testing.B) {
 			b.Run("strconv", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					buf = strconv.AppendUint(buf[:0], bench.Value, 10)
 				}
 			})
 			b.Run("custom", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					buf = AppendUint64(buf[:0], bench.Value)
 				}
 			})
@@ -137,13 +137,13 @@ func BenchmarkFormatInt64(b *testing.B) {
 		b.Run(bench.Name, func(b *testing.B) {
 			b.Run("strconv", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					buf = strconv.AppendInt(buf[:0], bench.Value, 10)
 				}
 			})
 			b.Run("custom", func(b *testing.B) {
 				b.ResetTimer()
-				for range b.N {
+				for b.Loop() {
 					buf = AppendInt64(buf[:0], bench.Value)
 				}
 			})

@@ -34,7 +34,7 @@ func Equal(t testing.TB, expected, actual any) {
 	} else {
 		expectedJson, err = json.Marshal(expected)
 		if err != nil {
-			expectedJson = []byte(fmt.Sprintf("%+v", expected))
+			expectedJson = fmt.Appendf(nil, "%+v", expected)
 		}
 	}
 	if s, ok := actual.(string); ok {
@@ -42,7 +42,7 @@ func Equal(t testing.TB, expected, actual any) {
 	} else {
 		actualJson, err = json.Marshal(actual)
 		if err != nil {
-			actualJson = []byte(fmt.Sprintf("%+v", actual))
+			actualJson = fmt.Appendf(nil, "%+v", actual)
 		}
 	}
 
@@ -69,7 +69,7 @@ func NotEqual(t testing.TB, expected, actual any) {
 	} else {
 		expectedJson, err = json.Marshal(expected)
 		if err != nil {
-			expectedJson = []byte(fmt.Sprintf("%+v", expected))
+			expectedJson = fmt.Appendf(nil, "%+v", expected)
 		}
 	}
 

@@ -655,68 +655,68 @@ func BenchmarkMarshal(b *testing.B) {
 
 	b.Run("jessy-hash", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			_, _ = Hash(value)
 		}
 	})
 	b.Run("jessy-marshal", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			Marshal(value)
 		}
 	})
 	b.Run("jessy-marshal-fast", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			MarshalFast(value)
 		}
 	})
 	b.Run("jessy-fast", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = AppendFast(buf[:0], value)
 		}
 	})
 	b.Run("jessy-fast-encoder", func(b *testing.B) {
 		e := NewEncoderWithFlags(io.Discard, EncodeFastest)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			e.Encode(value)
 		}
 	})
 	b.Run("jessy-fast-pretty", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = AppendPrettyFast(buf[:0], value)
 		}
 	})
 	b.Run("jessy-fast-indent", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = AppendIndentFast(buf[:0], value, "", "\t")
 		}
 	})
 	b.Run("jessy-standard", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = Append(buf[:0], value)
 		}
 	})
 	b.Run("jessy-standard-pretty", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = AppendPretty(buf[:0], value)
 		}
 	})
 	b.Run("json", func(b *testing.B) {
 		enc := json.NewEncoder(io.Discard)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			enc.Encode(value)
 		}
 	})
@@ -724,7 +724,7 @@ func BenchmarkMarshal(b *testing.B) {
 		enc := json.NewEncoder(io.Discard)
 		enc.SetIndent("", "\t")
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			enc.Encode(value)
 		}
 	})
