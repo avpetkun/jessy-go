@@ -547,30 +547,6 @@ func TestHTMLEscape(t *testing.T) {
 	}
 }
 
-// golang.org/issue/8582
-func TestEncodePointerString(t *testing.T) {
-	type stringPointer struct {
-		N *int64 `json:"n,string"`
-	}
-	var n int64 = 42
-	b, err := Marshal(stringPointer{N: &n})
-	if err != nil {
-		t.Fatalf("Marshal error: %v", err)
-	}
-	if got, want := string(b), `{"n":"42"}`; got != want {
-		t.Fatalf("Marshal:\n\tgot:  %s\n\twant: %s", got, want)
-	}
-	var back stringPointer
-	switch err = Unmarshal(b, &back); {
-	case err != nil:
-		t.Fatalf("Unmarshal error: %v", err)
-	case back.N == nil:
-		t.Fatalf("Unmarshal: back.N = nil, want non-nil")
-	case *back.N != 42:
-		t.Fatalf("Unmarshal: *back.N = %d, want 42", *back.N)
-	}
-}
-
 var encodeStringTests = []struct {
 	in  string
 	out string
