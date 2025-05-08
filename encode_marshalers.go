@@ -52,7 +52,7 @@ func marshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 
 func appendMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
-	getInterface := zgo.NewInterfacerFromRType[AppendMarshaler](t)
+	getInterface := zgo.NewInterfacerFromRType[JsonAppender](t)
 	if getInterface == nil {
 		return nullEncoder
 	}
@@ -120,7 +120,7 @@ func textMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 func appendTextMarshalerEncoder(t reflect.Type, flags Flags) UnsafeEncoder {
 	omitEmpty := flags.Has(OmitEmpty)
 
-	getInterface := zgo.NewInterfacerFromRType[AppendTextMarshaler](t)
+	getInterface := zgo.NewInterfacerFromRType[TextAppender](t)
 	if getInterface == nil {
 		return nullEncoder
 	}
