@@ -36,11 +36,11 @@ func tReallyStruct(t reflect.Type) bool {
 }
 
 func tImplementsAny(t reflect.Type) bool {
-	if t.Implements(typeAppendMarshaler) || t.Implements(typeMarshaler) ||
-		t.Implements(typeAppendTextMarshaler) || t.Implements(typeTextMarshaler) {
+	if t.Implements(typeJsonAppender) || t.Implements(typeMarshaler) ||
+		t.Implements(typeTextAppender) || t.Implements(typeTextMarshaler) {
 		return true
 	}
 	t = reflect.PointerTo(t)
-	return t.Implements(typeAppendMarshaler) || t.Implements(typeMarshaler) ||
-		t.Implements(typeAppendTextMarshaler) || t.Implements(typeTextMarshaler)
+	return t.Implements(typeJsonAppender) || t.Implements(typeMarshaler) ||
+		t.Implements(typeTextAppender) || t.Implements(typeTextMarshaler)
 }

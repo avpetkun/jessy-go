@@ -86,17 +86,17 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 
 	tp := reflect.PointerTo(t)
 	switch {
-	case tReallyImplements(t, typeAppendMarshaler):
+	case tReallyImplements(t, typeJsonAppender):
 		return appendMarshalerEncoder(t, flags)
-	case tReallyImplements(tp, typeAppendMarshaler):
+	case tReallyImplements(tp, typeJsonAppender):
 		return appendMarshalerEncoder(tp, flags)
 	case tReallyImplements(t, typeMarshaler):
 		return marshalerEncoder(t, flags)
 	case tReallyImplements(tp, typeMarshaler):
 		return marshalerEncoder(tp, flags)
-	case tReallyImplements(t, typeAppendTextMarshaler):
+	case tReallyImplements(t, typeTextAppender):
 		return appendTextMarshalerEncoder(t, flags)
-	case tReallyImplements(tp, typeAppendTextMarshaler):
+	case tReallyImplements(tp, typeTextAppender):
 		return appendTextMarshalerEncoder(tp, flags)
 	case tReallyImplements(t, typeTextMarshaler):
 		return textMarshalerEncoder(t, flags)

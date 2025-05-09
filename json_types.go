@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	typeAppendMarshaler     = reflect.TypeFor[JsonAppender]()
-	typeAppendTextMarshaler = reflect.TypeFor[TextAppender]()
+	typeJsonAppender = reflect.TypeFor[JsonAppender]()
+	typeTextAppender = reflect.TypeFor[TextAppender]()
 
 	typeMarshaler     = reflect.TypeFor[Marshaler]()
 	typeTextMarshaler = reflect.TypeFor[TextMarshaler]()
