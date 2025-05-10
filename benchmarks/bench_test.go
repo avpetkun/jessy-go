@@ -87,37 +87,37 @@ func runValueBenchmarks(b *testing.B, value any) {
 
 	b.Run("jessy", func(b *testing.B) {
 		b.Run("marshal-std", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jessy.Marshal(value)
 			}
 		})
 		b.Run("marshal-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jessy.MarshalFast(value)
 			}
 		})
 		b.Run("append-std", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				buf, _ = jessy.Append(buf[:0], value)
 			}
 		})
 		b.Run("append-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				buf, _ = jessy.AppendFast(buf[:0], value)
 			}
 		})
 		b.Run("append-fast-pretty", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				buf, _ = jessy.AppendPrettyFast(buf[:0], value)
 			}
 		})
 		b.Run("encode-std", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jessyStdEnc.Encode(value)
 			}
 		})
 		b.Run("encode-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jessyFastEnc.Encode(value)
 			}
 		})
@@ -125,32 +125,32 @@ func runValueBenchmarks(b *testing.B, value any) {
 
 	b.Run("sonic", func(b *testing.B) {
 		b.Run("std-marshal", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				sonicStd.Marshal(value)
 			}
 		})
 		b.Run("std-encode", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				sonicStdEnc.Encode(value)
 			}
 		})
 		b.Run("default-marshal", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				sonicDef.Marshal(value)
 			}
 		})
 		b.Run("default-encode", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				sonicDefEnc.Encode(value)
 			}
 		})
 		b.Run("fast-marshal", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				sonicFast.Marshal(value)
 			}
 		})
 		b.Run("fast-encode", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				sonicFastEnc.Encode(value)
 			}
 		})
@@ -158,22 +158,22 @@ func runValueBenchmarks(b *testing.B, value any) {
 
 	b.Run("jettison", func(b *testing.B) {
 		b.Run("marshal-full", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jettison.Marshal(value)
 			}
 		})
 		b.Run("marshal-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jettison.MarshalOpts(value, jettisonFastOpts...)
 			}
 		})
 		b.Run("append-full", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				buf, _ = jettison.Append(buf[:0], value)
 			}
 		})
 		b.Run("append-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				buf, _ = jettison.AppendOpts(buf[:0], value, jettisonFastOpts...)
 			}
 		})
@@ -181,53 +181,53 @@ func runValueBenchmarks(b *testing.B, value any) {
 
 	b.Run("jsoniter", func(b *testing.B) {
 		b.Run("marshal-default", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jsoniterDef.Marshal(value)
 			}
 		})
 		b.Run("marshal-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jsoniterFast.Marshal(value)
 			}
 		})
 		b.Run("marshal-compat", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jsoniterCompat.Marshal(value)
 			}
 		})
 
 		b.Run("encode-default", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jsoniterDefEnc.Encode(value)
 			}
 		})
 		b.Run("encode-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jsoniterFastEnc.Encode(value)
 			}
 		})
 		b.Run("encode-compat", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				jsoniterCompatEnc.Encode(value)
 			}
 		})
 
 		b.Run("borrow-default", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				s := jsoniterDef.BorrowStream(io.Discard)
 				s.WriteVal(value)
 				jsoniterDef.ReturnStream(s)
 			}
 		})
 		b.Run("borrow-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				s := jsoniterFast.BorrowStream(io.Discard)
 				s.WriteVal(value)
 				jsoniterFast.ReturnStream(s)
 			}
 		})
 		b.Run("borrow-compat", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				s := jsoniterCompat.BorrowStream(io.Discard)
 				s.WriteVal(value)
 				jsoniterCompat.ReturnStream(s)
@@ -237,22 +237,22 @@ func runValueBenchmarks(b *testing.B, value any) {
 
 	b.Run("gojson", func(b *testing.B) {
 		b.Run("marshal-full", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				gojson.Marshal(value)
 			}
 		})
 		b.Run("marshal-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				gojson.MarshalWithOption(value, gojsonFastOpts...)
 			}
 		})
 		b.Run("encoder-full", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				gojsonEnc.Encode(value)
 			}
 		})
 		b.Run("encoder-fast", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				gojsonEnc.EncodeWithOption(value, gojsonFastOpts...)
 			}
 		})
@@ -260,18 +260,18 @@ func runValueBenchmarks(b *testing.B, value any) {
 
 	b.Run("encoding-json", func(b *testing.B) {
 		b.Run("marshal", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				json.Marshal(value)
 			}
 		})
 		b.Run("encoder-full", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				stdJsonEnc.Encode(value)
 			}
 		})
 		b.Run("encoder-fast", func(b *testing.B) {
 			b.ResetTimer()
-			for range b.N {
+			for b.Loop() {
 				stdJsonFastEnc.Encode(value)
 			}
 		})

@@ -15,6 +15,36 @@ import (
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
+type ZeroTypeA struct {
+	S string
+}
+
+func (*ZeroTypeA) IsZero() bool { return true }
+
+type ZeroTypeB string
+
+func (*ZeroTypeB) IsZero() bool { return true }
+
+func TestOmitZero(t *testing.T) {
+	type Test struct {
+		A  int         `json:"a,omitzero"`
+		B  []int       `json:"b,omitzero"`
+		C  []int       `json:"c,omitzero"`
+		M  map[int]int `json:"m,omitzero"`
+		S1 ZeroTypeA   `json:"s1,omitzero"`
+		S2 *ZeroTypeA  `json:"s2,omitzero"`
+		S3 ZeroTypeB   `json:"s3,omitzero"`
+	}
+	value := &Test{A: 0, B: nil, C: []int{}, M: map[int]int{}, S1: ZeroTypeA{S: "s1"}, S2: &ZeroTypeA{S: "s2"}, S3: "s3"}
+
+	expected, err := json.Marshal(value)
+	require.NoError(t, err)
+	actual, err := Marshal(value)
+	require.NoError(t, err)
+
+	require.Equal(t, string(expected), string(actual))
+}
+
 type RecursionStruct struct {
 	S *Struct
 }
@@ -655,68 +685,68 @@ func BenchmarkMarshal(b *testing.B) {
 
 	b.Run("jessy-hash", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			_, _ = Hash(value)
 		}
 	})
 	b.Run("jessy-marshal", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			Marshal(value)
 		}
 	})
 	b.Run("jessy-marshal-fast", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			MarshalFast(value)
 		}
 	})
 	b.Run("jessy-fast", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = AppendFast(buf[:0], value)
 		}
 	})
 	b.Run("jessy-fast-encoder", func(b *testing.B) {
 		e := NewEncoderWithFlags(io.Discard, EncodeFastest)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			e.Encode(value)
 		}
 	})
 	b.Run("jessy-fast-pretty", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = AppendPrettyFast(buf[:0], value)
 		}
 	})
 	b.Run("jessy-fast-indent", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = AppendIndentFast(buf[:0], value, "", "\t")
 		}
 	})
 	b.Run("jessy-standard", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = Append(buf[:0], value)
 		}
 	})
 	b.Run("jessy-standard-pretty", func(b *testing.B) {
 		buf := make([]byte, 1024)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			buf, _ = AppendPretty(buf[:0], value)
 		}
 	})
 	b.Run("json", func(b *testing.B) {
 		enc := json.NewEncoder(io.Discard)
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			enc.Encode(value)
 		}
 	})
@@ -724,7 +754,7 @@ func BenchmarkMarshal(b *testing.B) {
 		enc := json.NewEncoder(io.Discard)
 		enc.SetIndent("", "\t")
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			enc.Encode(value)
 		}
 	})

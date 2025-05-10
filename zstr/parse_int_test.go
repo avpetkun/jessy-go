@@ -51,14 +51,14 @@ func TestParseInt64(t *testing.T) {
 func BenchmarkParseUint64(b *testing.B) {
 	b.Run("strconv", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			_, _ = strconv.ParseUint("123456789", 10, 64)
 		}
 	})
 	b.Run("custom", func(b *testing.B) {
 		bs := []byte("123456789")
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			_, _ = ParseUint64(bs)
 		}
 	})
@@ -67,14 +67,14 @@ func BenchmarkParseUint64(b *testing.B) {
 func BenchmarkParseInt64(b *testing.B) {
 	b.Run("strconv", func(b *testing.B) {
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			_, _ = strconv.ParseInt("-123456789", 10, 64)
 		}
 	})
 	b.Run("custom", func(b *testing.B) {
 		bs := []byte("-123456789")
 		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			_, _ = ParseInt64(bs)
 		}
 	})

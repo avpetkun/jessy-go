@@ -71,6 +71,17 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 		return pointerEncoder(deep, indent, flags, t, ifaceIndir, embedded)
 	}
 
+	tp := reflect.PointerTo(t)
+
+	if flags.Has(OmitZero) {
+		switch {
+		case tReallyImplements(t, typeIsZeroer):
+			return zeroerEncoder(deep, indent, flags, t, t, ifaceIndir, embedded)
+		case tReallyImplements(tp, typeIsZeroer):
+			return zeroerEncoder(deep, indent, flags, t, tp, ifaceIndir, embedded)
+		}
+	}
+
 	for i := range customEncoders {
 		if customEncoders[i].Type == t {
 			return customEncoders[i].Encoder(flags)
@@ -84,20 +95,19 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 		return bigIntEncoder(flags)
 	}
 
-	tp := reflect.PointerTo(t)
 	switch {
-	case tReallyImplements(t, typeAppendMarshaler):
-		return appendMarshalerEncoder(t, flags)
-	case tReallyImplements(tp, typeAppendMarshaler):
-		return appendMarshalerEncoder(tp, flags)
+	case tReallyImplements(t, typeJsonAppender):
+		return jsonAppenderEncoder(t, flags)
+	case tReallyImplements(tp, typeJsonAppender):
+		return jsonAppenderEncoder(tp, flags)
 	case tReallyImplements(t, typeMarshaler):
 		return marshalerEncoder(t, flags)
 	case tReallyImplements(tp, typeMarshaler):
 		return marshalerEncoder(tp, flags)
-	case tReallyImplements(t, typeAppendTextMarshaler):
-		return appendTextMarshalerEncoder(t, flags)
-	case tReallyImplements(tp, typeAppendTextMarshaler):
-		return appendTextMarshalerEncoder(tp, flags)
+	case tReallyImplements(t, typeTextAppender):
+		return textAppenderEncoder(t, flags)
+	case tReallyImplements(tp, typeTextAppender):
+		return textAppenderEncoder(tp, flags)
 	case tReallyImplements(t, typeTextMarshaler):
 		return textMarshalerEncoder(t, flags)
 	case tReallyImplements(tp, typeTextMarshaler):
@@ -151,6 +161,23 @@ func createTypeEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIn
 	}
 
 	return nopEncoder
+}
+
+func zeroerEncoder(deep, indent uint32, flags Flags, t, zeroType reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {
+	elemEncoder := createTypeEncoder(deep, indent, flags.Exclude(OmitZero), t, ifaceIndir, embedded)
+
+	getInterface := zgo.NewInterfacerFromRType[IsZeroer](zeroType)
+	if getInterface == nil {
+		return elemEncoder
+	}
+
+	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
+		i := getInterface(v)
+		if i == nil || i.IsZero() {
+			return dst, nil
+		}
+		return elemEncoder(dst, v)
+	}
 }
 
 func pointerEncoder(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndir, embedded bool) UnsafeEncoder {

@@ -26,7 +26,7 @@ func sliceEncoder(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncode
 		return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 			h := (*zgo.Slice)(v)
 			if h == nil || h.Len == 0 {
-				if omitEmpty {
+				if h.Data == nil && omitEmpty {
 					return dst, nil
 				}
 				dst = append(dst, '[', ']')
@@ -62,7 +62,7 @@ func sliceEncoder(deep, indent uint32, t reflect.Type, flags Flags) UnsafeEncode
 	return func(dst []byte, v unsafe.Pointer) ([]byte, error) {
 		h := (*zgo.Slice)(v)
 		if h == nil || h.Len == 0 {
-			if omitEmpty {
+			if h.Data == nil && omitEmpty {
 				return dst, nil
 			}
 			return append(dst, '[', ']'), nil
