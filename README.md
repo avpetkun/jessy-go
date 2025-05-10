@@ -77,13 +77,13 @@ func UnmarshalTrusted(data []byte, v any) error
 
 ## More zeroalloc marshal
 
-You can implement special AppendMarshaler/AppendTextMarshaler interface for zeroalloc some structs
+You can implement special JsonAppender/TextAppender interface for zeroalloc some structs
 
 ```go
-type AppendMarshaler interface {
+type JsonAppender interface {
     AppendJSON(dst []byte) (newDst []byte, err error)
 }
-type AppendTextMarshaler interface {
+type TextAppender interface {
     AppendText(dst []byte) (newDst []byte, err error)
 }
 ```
