@@ -7,6 +7,8 @@ import (
 )
 
 var (
+	typeIsZeroer = reflect.TypeFor[IsZeroer]()
+
 	typeJsonAppender = reflect.TypeFor[JsonAppender]()
 	typeTextAppender = reflect.TypeFor[TextAppender]()
 
@@ -52,4 +54,8 @@ type (
 	// 	 AppendText([]byte) ([]byte, error)
 	// }
 	TextAppender = encoding.TextAppender
+
+	IsZeroer interface {
+		IsZero() bool
+	}
 )

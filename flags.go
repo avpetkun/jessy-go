@@ -23,6 +23,7 @@ const (
 
 	// while encoding
 	OmitEmpty
+	OmitZero
 	NeedQuotes
 
 	encodeFlagsLen

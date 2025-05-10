@@ -15,6 +15,36 @@ import (
 	"github.com/avpetkun/jessy-go/zstr"
 )
 
+type ZeroTypeA struct {
+	S string
+}
+
+func (*ZeroTypeA) IsZero() bool { return true }
+
+type ZeroTypeB string
+
+func (*ZeroTypeB) IsZero() bool { return true }
+
+func TestOmitZero(t *testing.T) {
+	type Test struct {
+		A  int         `json:"a,omitzero"`
+		B  []int       `json:"b,omitzero"`
+		C  []int       `json:"c,omitzero"`
+		M  map[int]int `json:"m,omitzero"`
+		S1 ZeroTypeA   `json:"s1,omitzero"`
+		S2 *ZeroTypeA  `json:"s2,omitzero"`
+		S3 ZeroTypeB   `json:"s3,omitzero"`
+	}
+	value := &Test{A: 0, B: nil, C: []int{}, M: map[int]int{}, S1: ZeroTypeA{S: "s1"}, S2: &ZeroTypeA{S: "s2"}, S3: "s3"}
+
+	expected, err := json.Marshal(value)
+	require.NoError(t, err)
+	actual, err := Marshal(value)
+	require.NoError(t, err)
+
+	require.Equal(t, string(expected), string(actual))
+}
+
 type RecursionStruct struct {
 	S *Struct
 }

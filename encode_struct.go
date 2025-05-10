@@ -42,6 +42,8 @@ func getStructFields(deep, indent uint32, flags Flags, t reflect.Type, ifaceIndi
 			switch action {
 			case "omitempty":
 				fieldFlags |= OmitEmpty
+			case "omitzero":
+				fieldFlags |= OmitEmpty | OmitZero
 			case "string":
 				fieldFlags |= NeedQuotes
 			}
