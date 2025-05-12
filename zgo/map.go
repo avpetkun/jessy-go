@@ -6,9 +6,6 @@ import (
 	"unsafe"
 )
 
-//go:linkname mapLen reflect.maplen
-func mapLen(unsafe.Pointer) int
-
 func NewMapIteratorFromValue(value any) (it *MapIterator, count int) {
 	it = mapIteratorPool.Get().(*MapIterator)
 	eface := *(*EmptyInterface)(unsafe.Pointer(&value))
@@ -18,7 +15,7 @@ func NewMapIteratorFromValue(value any) (it *MapIterator, count int) {
 	mt := (*MapType)(unsafe.Pointer(eface.Type))
 	hmap := (*Map)(eface.Data)
 	it.Init(mt, hmap)
-	count = mapLen(eface.Data)
+	count = hmap.Len()
 	return
 }
 
@@ -31,7 +28,7 @@ func NewMapIteratorFromRType(rType reflect.Type) (getIterator func(valuePtr unsa
 		hmap := (*Map)(value)
 		it = mapIteratorPool.Get().(*MapIterator)
 		it.Init(mapType, hmap)
-		count = mapLen(value)
+		count = hmap.Len()
 		return
 	}
 }

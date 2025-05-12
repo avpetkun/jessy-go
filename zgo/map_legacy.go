@@ -60,3 +60,7 @@ type Map struct {
 	NEvacuate  uintptr        // progress counter for evacuation (buckets less than this have been evacuated)
 	Extra      unsafe.Pointer // optional fields
 }
+
+func (m *Map) Len() int {
+	return m.Count
+}
