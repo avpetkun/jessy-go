@@ -45,7 +45,7 @@ type Map struct {
 	// The number of filled slots (i.e. the number of elements in all
 	// tables). Excludes deleted slots.
 	// Must be first (known by the compiler, for len() builtin).
-	used uint64
+	used int
 
 	// seed is the hash seed, computed as a unique random number per map.
 	seed uintptr
@@ -90,7 +90,7 @@ type Map struct {
 	clearSeq uint64
 }
 
-func (m *Map) Used() uint64 {
+func (m *Map) Len() int {
 	return m.used
 }
 
@@ -153,7 +153,7 @@ func (m *Map) directoryAt(i uintptr) *table {
 }
 
 func (m *Map) getWithKey(typ *MapType, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
-	if m.Used() == 0 {
+	if m.Len() == 0 {
 		return nil, nil, false
 	}
 
